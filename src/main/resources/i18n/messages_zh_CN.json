@@ -80,6 +80,11 @@
   "dialog.master.mismatch": "两次输入不一致。",
   "dialog.master.wrong": "主密码错误。",
   "dialog.master.not_saved": "密码未保存（需要主密码）。",
+  "dialog.master.other": "其他方式",
+
+  "dialog.auth.choose_title": "认证方式",
+  "dialog.auth.choose_prompt": "请选择连接认证方式：",
+  "dialog.key.passphrase_prompt": "私钥口令（可留空）：",
 
   "auth.password": "密码",
   "auth.private_key": "公钥",

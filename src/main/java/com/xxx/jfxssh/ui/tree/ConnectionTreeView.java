@@ -22,6 +22,7 @@ import javafx.scene.control.TreeView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Optional;
 
 /**
@@ -196,41 +197,100 @@ public final class ConnectionTreeView {
     }
 
     /**
-     * 打开终端：构建连接配置（密码认证优先用已保存的加密密码，否则弹窗输入），
+     * 打开终端：解析认证（已存密码→主密码解锁解密，可重试或改用其他方式），
      * 委托打开终端标签页。
      */
     private void connect(Connection c) {
-        SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
-                .port(c.getPort())
-                .authType(c.getAuthType());
-
-        if (c.getAuthType() == AuthType.PRIVATE_KEY) {
-            builder.privateKeyPath(c.getPrivateKeyPath());
-        } else {
-            String password = resolvePassword(c);
-            if (password == null) {
-                return;
-            }
-            builder.password(password);
+        SshConnectionConfig config = buildConfig(c);
+        if (config == null) {
+            return;
         }
-
         log.info("Opening terminal for {}:{}", c.getHost(), c.getPort());
-        terminalLauncher.open(c, builder.build());
+        terminalLauncher.open(c, config);
     }
 
-    /** 取密码：有已保存密文则解锁解密，否则弹窗输入；用户取消返回 null。 */
-    private String resolvePassword(Connection c) {
+    /** 构建连接配置；用户全程取消返回 null。 */
+    private SshConnectionConfig buildConfig(Connection c) {
+        SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
+                .port(c.getPort());
+
+        if (c.getAuthType() == AuthType.PRIVATE_KEY) {
+            return builder.authType(AuthType.PRIVATE_KEY)
+                    .privateKeyPath(c.getPrivateKeyPath())
+                    .build();
+        }
+
         String enc = c.getPasswordEnc();
-        if (enc != null && !enc.isBlank() && ensureUnlocked()) {
-            try {
-                return vault.decrypt(enc);
-            } catch (RuntimeException ex) {
-                log.warn("Failed to decrypt stored password for {}: {}", c.getHost(), ex.getMessage());
+        if (enc != null && !enc.isBlank()) {
+            if (vault.isUnlocked()) {
+                String pw = tryDecrypt(enc);
+                if (pw != null) {
+                    return builder.authType(AuthType.PASSWORD).password(pw).build();
+                }
+            } else {
+                boolean showError = false;
+                while (true) {
+                    UiDialogs.UnlockRequest req = UiDialogs.promptMasterUnlock(showError);
+                    if (req.action() == UiDialogs.UnlockAction.CANCEL) {
+                        return null;
+                    }
+                    if (req.action() == UiDialogs.UnlockAction.OTHER) {
+                        break;
+                    }
+                    boolean ok;
+                    try {
+                        ok = vault.unlock(req.password());
+                    } finally {
+                        CredentialVault.wipe(req.password());
+                    }
+                    if (ok) {
+                        String pw = tryDecrypt(enc);
+                        if (pw != null) {
+                            return builder.authType(AuthType.PASSWORD).password(pw).build();
+                        }
+                        break;
+                    }
+                    showError = true;
+                }
             }
         }
-        return UiDialogs.promptPassword(
-                I18n.t("dialog.password.title"),
-                I18n.t("dialog.password.prompt", c.getHost())).orElse(null);
+        return chooseMethod(c, builder);
+    }
+
+    /** 让用户选择认证方式（密码 / 私钥）并补全配置；取消返回 null。 */
+    private SshConnectionConfig chooseMethod(Connection c, SshConnectionConfig.Builder builder) {
+        UiDialogs.AuthChoice choice = UiDialogs.chooseAuthMethod();
+        if (choice == UiDialogs.AuthChoice.CANCEL) {
+            return null;
+        }
+        if (choice == UiDialogs.AuthChoice.PASSWORD) {
+            Optional<String> pw = UiDialogs.promptPassword(
+                    I18n.t("dialog.password.title"),
+                    I18n.t("dialog.password.prompt", c.getHost()));
+            if (pw.isEmpty()) {
+                return null;
+            }
+            return builder.authType(AuthType.PASSWORD).password(pw.get()).build();
+        }
+        // PRIVATE_KEY
+        Optional<File> keyFile = UiDialogs.chooseKeyFile();
+        if (keyFile.isEmpty()) {
+            return null;
+        }
+        builder.authType(AuthType.PRIVATE_KEY).privateKeyPath(keyFile.get().getAbsolutePath());
+        UiDialogs.promptPassword(I18n.t("dialog.password.title"), I18n.t("dialog.key.passphrase_prompt"))
+                .filter(p -> !p.isBlank())
+                .ifPresent(builder::passphrase);
+        return builder.build();
+    }
+
+    private String tryDecrypt(String enc) {
+        try {
+            return vault.decrypt(enc);
+        } catch (RuntimeException e) {
+            log.warn("Failed to decrypt stored password: {}", e.getMessage());
+            return null;
+        }
     }
 
     /** 确保保险库已解锁：未初始化则引导设置主密码，已初始化则要求输入主密码。 */

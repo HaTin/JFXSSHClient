@@ -80,6 +80,11 @@
   "dialog.master.mismatch": "Passwords do not match.",
   "dialog.master.wrong": "Wrong master password.",
   "dialog.master.not_saved": "Password was not saved (master password required).",
+  "dialog.master.other": "Other Method",
+
+  "dialog.auth.choose_title": "Authentication",
+  "dialog.auth.choose_prompt": "Choose how to authenticate:",
+  "dialog.key.passphrase_prompt": "Private key passphrase (optional):",
 
   "auth.password": "Password",
   "auth.private_key": "Private Key",

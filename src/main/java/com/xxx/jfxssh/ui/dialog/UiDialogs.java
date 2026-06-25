@@ -13,7 +13,9 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 
+import java.io.File;
 import java.util.Optional;
 
 /**
@@ -165,5 +167,104 @@ public final class UiDialogs {
         dialog.getDialogPane().setContent(box);
         dialog.setResultConverter(bt -> bt == ok ? field.getText().toCharArray() : null);
         return dialog.showAndWait();
+    }
+
+    /** 解锁对话框的用户选择。 */
+    public enum UnlockAction {
+        /** 用输入的主密码解锁。 */
+        UNLOCK,
+        /** 改用其他方式（密码 / 私钥）。 */
+        OTHER,
+        /** 取消。 */
+        CANCEL
+    }
+
+    /**
+     * 解锁请求结果。
+     *
+     * @param action   选择
+     * @param password 主密码（仅 UNLOCK 时有效）
+     */
+    public record UnlockRequest(UnlockAction action, char[] password) {
+    }
+
+    /**
+     * 连接时的解锁对话框：可解锁 / 改用其他方式 / 取消；密码错误可重试。
+     *
+     * @param showError 是否显示"主密码错误"提示（重试时）
+     * @return 解锁请求
+     */
+    public static UnlockRequest promptMasterUnlock(boolean showError) {
+        Dialog<UnlockRequest> dialog = new Dialog<>();
+        dialog.setTitle(I18n.t("dialog.master.unlock_title"));
+        ButtonType unlock = new ButtonType(I18n.t("button.ok"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType other = new ButtonType(I18n.t("dialog.master.other"), ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = cancelButton();
+        dialog.getDialogPane().getButtonTypes().addAll(unlock, other, cancel);
+
+        PasswordField field = new PasswordField();
+        VBox box = new VBox(8);
+        if (showError) {
+            Label err = new Label(I18n.t("dialog.master.wrong"));
+            err.setStyle("-fx-text-fill: #d33;");
+            box.getChildren().add(err);
+        }
+        box.getChildren().addAll(new Label(I18n.t("dialog.master.unlock_prompt")), field);
+        box.setPadding(new Insets(12));
+        dialog.getDialogPane().setContent(box);
+        dialog.setResultConverter(bt -> {
+            if (bt == unlock) {
+                return new UnlockRequest(UnlockAction.UNLOCK, field.getText().toCharArray());
+            }
+            if (bt == other) {
+                return new UnlockRequest(UnlockAction.OTHER, null);
+            }
+            return new UnlockRequest(UnlockAction.CANCEL, null);
+        });
+        return dialog.showAndWait().orElse(new UnlockRequest(UnlockAction.CANCEL, null));
+    }
+
+    /** 认证方式选择。 */
+    public enum AuthChoice {
+        /** 手动输入密码。 */
+        PASSWORD,
+        /** 使用私钥。 */
+        PRIVATE_KEY,
+        /** 取消。 */
+        CANCEL
+    }
+
+    /**
+     * 选择认证方式（密码 / 私钥）。
+     *
+     * @return 选择
+     */
+    public static AuthChoice chooseAuthMethod() {
+        ButtonType password = new ButtonType(I18n.t("auth.password"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType key = new ButtonType(I18n.t("auth.private_key"), ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = cancelButton();
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+                I18n.t("dialog.auth.choose_prompt"), password, key, cancel);
+        alert.setTitle(I18n.t("dialog.auth.choose_title"));
+        alert.setHeaderText(null);
+        ButtonType result = alert.showAndWait().orElse(cancel);
+        if (result == password) {
+            return AuthChoice.PASSWORD;
+        }
+        if (result == key) {
+            return AuthChoice.PRIVATE_KEY;
+        }
+        return AuthChoice.CANCEL;
+    }
+
+    /**
+     * 选择私钥文件。
+     *
+     * @return 文件，取消返回 empty
+     */
+    public static Optional<File> chooseKeyFile() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.t("dialog.connection.private_key_path"));
+        return Optional.ofNullable(chooser.showOpenDialog(null));
     }
 }
