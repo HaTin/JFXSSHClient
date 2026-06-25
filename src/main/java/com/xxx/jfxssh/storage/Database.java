@@ -64,13 +64,17 @@ public final class Database {
     }
 
     /**
-     * 打开一个新的数据库连接。
+     * 打开一个新的数据库连接（已开启外键约束）。
      *
      * @return JDBC 连接
      * @throws SQLException 连接失败时抛出
      */
     public Connection openConnection() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl);
+        Connection conn = DriverManager.getConnection(jdbcUrl);
+        try (Statement st = conn.createStatement()) {
+            st.execute("PRAGMA foreign_keys = ON");
+        }
+        return conn;
     }
 
     private void enableForeignKeys(Connection conn) throws SQLException {

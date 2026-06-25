@@ -34,7 +34,7 @@ DONE（BorderPane + MenuBar + ConnectionTree + TerminalTabs + StatusBar，含连
 
 状态：
 
-TODO
+DONE（Connection 实体 + ConnectionRepository + ConnectionService，SQLite 增删改查；UI 接入待后续）
 
 ---
 
@@ -120,4 +120,5 @@ DONE
 
 - 任务0：项目基础骨架
 - 任务1：主窗口框架
+- 任务2：连接管理（Service / Repository / 实体）
 - 任务8：多语言（i18n）

@@ -1,7 +1,7 @@
 /**
  * 持久化实体。
  *
- * <p>预留包，本阶段不实现。后续承载 Connection、Group、Setting 等实体
- * （对应 docs/DATABASE.md 的表结构）。</p>
+ * <p>承载与表结构对应的数据载体。已实现：Connection。
+ * 规划中：Group、Setting（对应 docs/DATABASE.md）。</p>
  */
 package com.xxx.jfxssh.storage.entity;
