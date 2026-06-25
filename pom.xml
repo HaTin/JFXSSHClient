@@ -22,6 +22,8 @@
         <jackson.version>2.17.2</jackson.version>
         <sshd.version>2.13.2</sshd.version>
         <jediterm.version>3.72</jediterm.version>
+        <junit.version>5.10.3</junit.version>
+        <surefire.version>3.2.5</surefire.version>
 
         <main.class>com.xxx.jfxssh.launcher.Main</main.class>
     </properties>
@@ -93,6 +95,14 @@
             <artifactId>jediterm-ui</artifactId>
             <version>${jediterm.version}</version>
         </dependency>
+
+        <!-- 测试：JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -125,6 +135,16 @@
                         <classpath/>
                         <argument>${main.class}</argument>
                     </arguments>
+                </configuration>
+            </plugin>
+
+            <!-- 测试：surefire（JavaFX 模块供 i18n 的属性/绑定使用） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <argLine>--add-modules javafx.controls,javafx.swing</argLine>
                 </configuration>
             </plugin>
         </plugins>

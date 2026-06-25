@@ -127,3 +127,10 @@ DONE
 - 任务6：主题切换（Light / Dark 实时）
 - 任务7：凭据加密（主密码 + PBKDF2 + AES-256-GCM）
 - 任务8：多语言（i18n）
+
+---
+
+## 工程化
+
+- 单元测试：JUnit 5 + surefire，31 个用例（cipher / vault / settings / i18n /
+  connection / group + 级联 / ssh 集成 / tty-connector 断开重连），mvn test 全绿
