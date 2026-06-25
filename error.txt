@@ -1,0 +1,11 @@
+at org.apache.sshd.common.channel.ChannelOutputStream.write(ChannelOutputStream.java:146)
+	at java.base/java.io.OutputStream.write(OutputStream.java:124)
+	at com.xxx.jfxssh.terminal.SshTtyConnector.write(SshTtyConnector.java:43)
+	at com.jediterm.terminal.TerminalStarter.lambda$sendBytes$2(TerminalStarter.java:202)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-06-26 04:33:12.694 [JavaFX Application Thread] INFO  com.xxx.jfxssh.ssh.MinaSshSession - SSH disconnected: root@127.0.0.1:22

@@ -47,6 +47,7 @@
 
   "tab.welcome": "欢迎",
   "tab.no_session": "暂无活动会话",
+  "terminal.disconnected_hint": "[连接已断开 — 按回车重新连接]",
 
   "status.ready": "就绪",
 

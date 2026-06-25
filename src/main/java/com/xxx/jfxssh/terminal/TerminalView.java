@@ -83,6 +83,23 @@ public final class TerminalView {
     }
 
     /**
+     * 在终端显示区追加一行提示（如断开提示），不影响底层通道。
+     *
+     * @param text 提示文本
+     */
+    public void showHint(String text) {
+        SwingUtilities.invokeLater(() -> {
+            if (widget != null) {
+                widget.getTerminal().carriageReturn();
+                widget.getTerminal().newLine();
+                widget.getTerminal().writeCharacters(text);
+                widget.getTerminal().carriageReturn();
+                widget.getTerminal().newLine();
+            }
+        });
+    }
+
+    /**
      * 关闭终端：断开连接器与会话，释放控件。
      */
     public void close() {

@@ -65,27 +65,39 @@ public final class TerminalTabsPane {
      * @param config     SSH 连接配置
      */
     public void openTerminal(Connection connection, SshConnectionConfig config) {
-        String name = displayName(connection);
-        TerminalView view = new TerminalView();
-
-        Tab tab = new Tab(tabText(DOT_CONNECTING, name));
-        tab.setContent(view.getNode());
-        tab.setUserData(view);
-        tab.setOnClosed(e -> view.close());
+        Tab tab = new Tab();
+        tab.setOnClosed(e -> closeTabView(tab));
         tabs.getTabs().add(tab);
         tabs.getSelectionModel().select(tab);
+        connectIntoTab(tab, connection, config);
+    }
+
+    /**
+     * 在指定标签内（重新）建立连接并挂载终端。首连与重连复用此逻辑。
+     */
+    private void connectIntoTab(Tab tab, Connection connection, SshConnectionConfig config) {
+        String name = displayName(connection);
+
+        // 重连时先释放旧视图
+        closeTabView(tab);
+
+        TerminalView view = new TerminalView();
+        tab.setText(tabText(DOT_CONNECTING, name));
+        tab.setContent(view.getNode());
+        tab.setUserData(view);
 
         Thread worker = new Thread(() -> {
             try {
                 SshSession session = sshService.connect(config);
                 SshShell shell = session.openShell(COLUMNS, ROWS);
-                SshTtyConnector connector = new SshTtyConnector(shell, name);
+                SshTtyConnector connector = new SshTtyConnector(shell, name,
+                        () -> Platform.runLater(() -> connectIntoTab(tab, connection, config)));
                 view.attach(connector, session);
                 Platform.runLater(() -> {
                     tab.setText(tabText(DOT_CONNECTED, name));
                     view.requestTerminalFocus();
                 });
-                watchClose(shell, tab, name);
+                watchClose(view, shell, tab, name);
             } catch (RuntimeException ex) {
                 log.warn("Terminal connect failed for {}: {}", name, ex.getMessage());
                 Platform.runLater(() -> {
@@ -98,13 +110,22 @@ public final class TerminalTabsPane {
         worker.start();
     }
 
-    private void watchClose(SshShell shell, Tab tab, String name) {
+    private void watchClose(TerminalView view, SshShell shell, Tab tab, String name) {
         Thread watcher = new Thread(() -> {
             shell.waitForClose();
-            Platform.runLater(() -> tab.setText(tabText(DOT_DISCONNECTED, name)));
+            Platform.runLater(() -> {
+                tab.setText(tabText(DOT_DISCONNECTED, name));
+                view.showHint(I18n.t("terminal.disconnected_hint"));
+            });
         }, "ssh-watch-" + name);
         watcher.setDaemon(true);
         watcher.start();
+    }
+
+    private void closeTabView(Tab tab) {
+        if (tab.getUserData() instanceof TerminalView view) {
+            view.close();
+        }
     }
 
     private String tabText(String dot, String name) {

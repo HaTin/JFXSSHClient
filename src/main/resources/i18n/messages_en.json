@@ -47,6 +47,7 @@
 
   "tab.welcome": "Welcome",
   "tab.no_session": "No active session",
+  "terminal.disconnected_hint": "[Disconnected — press Enter to reconnect]",
 
   "status.ready": "Ready",
 
