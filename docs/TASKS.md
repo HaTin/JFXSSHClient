@@ -54,7 +54,7 @@ TODO
 
 状态：
 
-TODO
+DONE（SSH 连接管理：Mina SSHD，密码 + 公钥认证、保活、关闭；shell/终端不含，属任务4）
 
 ---
 
@@ -121,4 +121,5 @@ DONE
 - 任务0：项目基础骨架
 - 任务1：主窗口框架
 - 任务2：连接管理（Service / Repository / 实体）
+- 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
 - 任务8：多语言（i18n）

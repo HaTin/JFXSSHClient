@@ -20,6 +20,7 @@
         <logback.version>1.5.6</logback.version>
         <sqlite.version>3.46.0.0</sqlite.version>
         <jackson.version>2.17.2</jackson.version>
+        <sshd.version>2.13.2</sshd.version>
 
         <main.class>com.xxx.jfxssh.launcher.Main</main.class>
     </properties>
@@ -59,10 +60,15 @@
             <version>${jackson.version}</version>
         </dependency>
 
+        <!-- SSH: Apache Mina SSHD（客户端连接管理） -->
+        <dependency>
+            <groupId>org.apache.sshd</groupId>
+            <artifactId>sshd-core</artifactId>
+            <version>${sshd.version}</version>
+        </dependency>
+
         <!--
-            以下依赖将在对应里程碑引入，此阶段不实现：
-            - Apache Mina SSHD  (SSH 模块)
-            - JediTerm          (Terminal 模块)
+            JediTerm（Terminal 模块）将在终端里程碑引入，此阶段不实现。
         -->
     </dependencies>
 
