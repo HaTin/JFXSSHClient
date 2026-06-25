@@ -29,6 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -77,7 +78,11 @@ public final class TerminalTabsPane {
         tabBar.setPadding(new Insets(2));
         tabBar.setAlignment(Pos.CENTER_LEFT);
         root.setTop(tabBar);
-        root.setCenter(new StackPane(swingNode));
+        // 允许收缩到任意宽度，避免 SwingNode 最小尺寸导致拖动分隔条时被挤压留白
+        StackPane center = new StackPane(swingNode);
+        center.setMinSize(0, 0);
+        root.setCenter(center);
+        root.setMinWidth(0);
 
         SwingUtilities.invokeLater(() -> {
             JPanel welcome = new JPanel(new BorderLayout());
@@ -163,6 +168,9 @@ public final class TerminalTabsPane {
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
             JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new ThemedTerminalSettings(dark));
+            // 允许控件收缩到 0，避免分隔条拖动时的留白挤压
+            widget.setMinimumSize(new Dimension(0, 0));
+            widget.getTerminalPanel().setMinimumSize(new Dimension(0, 0));
             widget.setTtyConnector(connector);
             widget.start();
             entry.widget = widget;
