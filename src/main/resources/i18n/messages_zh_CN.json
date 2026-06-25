@@ -37,6 +37,14 @@
   "tree.group.testing": "测试环境",
   "tree.group.local": "本地",
 
+  "tree.menu.add_group": "添加分组",
+  "tree.menu.rename_group": "重命名分组",
+  "tree.menu.delete_group": "删除分组",
+  "tree.menu.connect": "连接",
+  "tree.menu.edit": "编辑",
+  "tree.menu.duplicate": "复制",
+  "tree.menu.delete": "删除",
+
   "tab.welcome": "欢迎",
   "tab.no_session": "暂无活动会话",
 

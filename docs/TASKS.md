@@ -24,7 +24,7 @@ DONE
 
 状态：
 
-进行中（界面框架已搭建，业务行为待实现）
+DONE（BorderPane + MenuBar + ConnectionTree + TerminalTabs + StatusBar，含连接树右键菜单）
 
 ---
 
@@ -119,4 +119,5 @@ DONE
 ## 已完成
 
 - 任务0：项目基础骨架
+- 任务1：主窗口框架
 - 任务8：多语言（i18n）

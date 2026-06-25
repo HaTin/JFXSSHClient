@@ -37,6 +37,14 @@
   "tree.group.testing": "Testing",
   "tree.group.local": "Local",
 
+  "tree.menu.add_group": "Add Group",
+  "tree.menu.rename_group": "Rename Group",
+  "tree.menu.delete_group": "Delete Group",
+  "tree.menu.connect": "Connect",
+  "tree.menu.edit": "Edit",
+  "tree.menu.duplicate": "Duplicate",
+  "tree.menu.delete": "Delete",
+
   "tab.welcome": "Welcome",
   "tab.no_session": "No active session",
 
