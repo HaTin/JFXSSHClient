@@ -75,6 +75,10 @@ public final class MainWindow {
     public void bindThemeMenu(ThemeManager themeManager) {
         lightThemeItem.setOnAction(e -> themeManager.applyLight());
         darkThemeItem.setOnAction(e -> themeManager.applyDark());
+
+        // 终端配色跟随应用主题
+        terminalTabs.applyDarkTheme(themeManager.isDark());
+        themeManager.darkProperty().addListener((obs, was, dark) -> terminalTabs.applyDarkTheme(dark));
     }
 
     private SplitPane buildCenter() {

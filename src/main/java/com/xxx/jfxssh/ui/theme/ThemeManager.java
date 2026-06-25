@@ -1,6 +1,8 @@
 package com.xxx.jfxssh.ui.theme;
 
 import com.xxx.jfxssh.common.config.AppConfig;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.scene.Scene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +11,8 @@ import org.slf4j.LoggerFactory;
  * 主题管理器。
  *
  * <p>支持 Light / Dark 两套主题，切换实时生效、无需重启（见 docs/UI_DESIGN.md）。
- * 通过替换 Scene 的样式表实现，并将选择持久化到 {@link AppConfig}。</p>
+ * 通过替换 Scene 的样式表实现，并将选择持久化到 {@link AppConfig}。
+ * 暴露 {@link #darkProperty()} 供终端等组件跟随主题。</p>
  */
 public final class ThemeManager {
 
@@ -26,6 +29,7 @@ public final class ThemeManager {
 
     private final Scene scene;
     private final AppConfig config;
+    private final ReadOnlyBooleanWrapper dark = new ReadOnlyBooleanWrapper(true);
 
     /**
      * @param scene  目标场景
@@ -34,6 +38,20 @@ public final class ThemeManager {
     public ThemeManager(Scene scene, AppConfig config) {
         this.scene = scene;
         this.config = config;
+    }
+
+    /**
+     * @return 当前是否深色主题
+     */
+    public boolean isDark() {
+        return dark.get();
+    }
+
+    /**
+     * @return 深色主题状态属性（可监听）
+     */
+    public ReadOnlyBooleanProperty darkProperty() {
+        return dark.getReadOnlyProperty();
     }
 
     /**
@@ -70,6 +88,7 @@ public final class ThemeManager {
         scene.getStylesheets().clear();
         scene.getStylesheets().add(url.toExternalForm());
 
+        dark.set(THEME_DARK.equals(normalized));
         config.set(AppConfig.KEY_THEME, normalized);
         config.save();
         log.info("Theme applied: {}", normalized);

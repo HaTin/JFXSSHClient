@@ -1,7 +1,6 @@
 package com.xxx.jfxssh.ui.terminal;
 
 import com.jediterm.terminal.ui.JediTermWidget;
-import com.jediterm.terminal.ui.settings.DefaultSettingsProvider;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
 import com.xxx.jfxssh.ssh.SshService;
@@ -9,6 +8,7 @@ import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.ssh.SshShell;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.terminal.SshTtyConnector;
+import com.xxx.jfxssh.terminal.ThemedTerminalSettings;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingNode;
@@ -28,7 +28,10 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -59,6 +62,7 @@ public final class TerminalTabsPane {
     private final BorderPane root = new BorderPane();
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
+    private final ThemedTerminalSettings settings = new ThemedTerminalSettings(true);
     private final Map<String, Entry> entries = new HashMap<>();
 
     private volatile JComponent welcomePanel;
@@ -89,6 +93,34 @@ public final class TerminalTabsPane {
      */
     public BorderPane getView() {
         return root;
+    }
+
+    /**
+     * 应用深色 / 浅色主题：更新配色并重绘已有终端与欢迎面板。
+     *
+     * @param dark 是否深色
+     */
+    public void applyDarkTheme(boolean dark) {
+        settings.setDark(dark);
+        Color bg = dark ? new Color(0x1E, 0x1E, 0x1E) : Color.WHITE;
+        Color fg = dark ? new Color(0xD0, 0xD0, 0xD0) : new Color(0x1F, 0x1F, 0x1F);
+        List<JediTermWidget> widgets = new ArrayList<>();
+        for (Entry e : entries.values()) {
+            if (e.widget != null) {
+                widgets.add(e.widget);
+            }
+        }
+        SwingUtilities.invokeLater(() -> {
+            for (JediTermWidget widget : widgets) {
+                widget.getTerminalPanel().setBackground(bg);
+                widget.getTerminalPanel().repaint();
+            }
+            if (welcomePanel != null) {
+                welcomePanel.setBackground(bg);
+                welcomePanel.setForeground(fg);
+                welcomePanel.repaint();
+            }
+        });
     }
 
     /**
@@ -140,7 +172,7 @@ public final class TerminalTabsPane {
         SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
-            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
+            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, settings);
             widget.setTtyConnector(connector);
             widget.start();
             entry.widget = widget;
