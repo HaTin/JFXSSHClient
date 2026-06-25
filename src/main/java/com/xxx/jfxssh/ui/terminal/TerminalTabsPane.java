@@ -29,9 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -62,8 +60,9 @@ public final class TerminalTabsPane {
     private final BorderPane root = new BorderPane();
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
-    private final ThemedTerminalSettings settings = new ThemedTerminalSettings(true);
     private final Map<String, Entry> entries = new HashMap<>();
+
+    private volatile boolean dark = true;
 
     private volatile JComponent welcomePanel;
     private String selectedCardId;
@@ -96,25 +95,16 @@ public final class TerminalTabsPane {
     }
 
     /**
-     * 应用深色 / 浅色主题：更新配色并重绘已有终端与欢迎面板。
+     * 应用深色 / 浅色主题。已连接的终端保持原配色（避免 JediTerm 运行时重绘的
+     * 缓存问题），仅影响此后新建的终端；欢迎面板会随主题更新。
      *
      * @param dark 是否深色
      */
     public void applyDarkTheme(boolean dark) {
-        settings.setDark(dark);
+        this.dark = dark;
         Color bg = dark ? new Color(0x1E, 0x1E, 0x1E) : Color.WHITE;
         Color fg = dark ? new Color(0xD0, 0xD0, 0xD0) : new Color(0x1F, 0x1F, 0x1F);
-        List<JediTermWidget> widgets = new ArrayList<>();
-        for (Entry e : entries.values()) {
-            if (e.widget != null) {
-                widgets.add(e.widget);
-            }
-        }
         SwingUtilities.invokeLater(() -> {
-            for (JediTermWidget widget : widgets) {
-                widget.getTerminalPanel().setBackground(bg);
-                widget.getTerminalPanel().repaint();
-            }
             if (welcomePanel != null) {
                 welcomePanel.setBackground(bg);
                 welcomePanel.setForeground(fg);
@@ -172,7 +162,7 @@ public final class TerminalTabsPane {
         SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
-            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, settings);
+            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new ThemedTerminalSettings(dark));
             widget.setTtyConnector(connector);
             widget.start();
             entry.widget = widget;

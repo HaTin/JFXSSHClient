@@ -7,8 +7,8 @@ import com.jediterm.terminal.ui.settings.DefaultSettingsProvider;
 /**
  * 跟随应用主题（深色 / 浅色）的 JediTerm 配置。
  *
- * <p>覆盖默认前景 / 背景色；{@code dark} 标志可运行时切换，配合面板重绘实现
- * 终端配色随主题变化（见 docs/UI_DESIGN.md：主题实时生效）。</p>
+ * <p>覆盖默认前景 / 背景色。配色在创建时固定：每个终端按创建时的主题取色，
+ * 此后切换主题不影响已存在的终端，只有新建终端使用新配色（见 docs/UI_DESIGN.md）。</p>
  */
 public final class ThemedTerminalSettings extends DefaultSettingsProvider {
 
@@ -17,19 +17,12 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
     private static final TerminalColor LIGHT_FG = new TerminalColor(0x1F, 0x1F, 0x1F);
     private static final TerminalColor LIGHT_BG = new TerminalColor(0xFF, 0xFF, 0xFF);
 
-    private volatile boolean dark;
+    private final boolean dark;
 
     /**
-     * @param dark 初始是否深色
+     * @param dark 是否深色（创建后固定）
      */
     public ThemedTerminalSettings(boolean dark) {
-        this.dark = dark;
-    }
-
-    /**
-     * @param dark 是否深色
-     */
-    public void setDark(boolean dark) {
         this.dark = dark;
     }
 
