@@ -44,7 +44,7 @@ DONE（Connection 实体 + ConnectionRepository + ConnectionService，SQLite 增
 
 状态：
 
-TODO
+进行中（后端 DONE：Group 实体 + GroupRepository + GroupService，含树构建与级联删除；连接树 UI 接入待做）
 
 ---
 
@@ -121,5 +121,6 @@ DONE
 - 任务0：项目基础骨架
 - 任务1：主窗口框架
 - 任务2：连接管理（Service / Repository / 实体）
+- 任务2.1：分组管理后端（Group Service / Repository / 实体）
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
 - 任务8：多语言（i18n）
