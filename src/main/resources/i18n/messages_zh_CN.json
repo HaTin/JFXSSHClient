@@ -64,6 +64,7 @@
   "dialog.connection.browse": "浏览",
   "dialog.connection.group": "分组",
   "dialog.connection.group_none": "（无）",
+  "dialog.connection.terminal_type": "终端类型",
   "dialog.connection.remark": "备注",
   "dialog.connection.password_hint": "密码将用主密码加密保存。",
   "dialog.connection.required": "名称与主机必填。",

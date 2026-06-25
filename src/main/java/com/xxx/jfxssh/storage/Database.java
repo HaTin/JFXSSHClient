@@ -28,7 +28,7 @@ public final class Database {
     private static final Logger log = LoggerFactory.getLogger(Database.class);
 
     private static final String SCHEMA_RESOURCE = "/db/schema.sql";
-    private static final int CURRENT_SCHEMA_VERSION = 1;
+    private static final int CURRENT_SCHEMA_VERSION = 2;
 
     private final AppPaths paths;
     private final String jdbcUrl;
@@ -56,7 +56,7 @@ public final class Database {
         try (Connection conn = openConnection()) {
             enableForeignKeys(conn);
             applySchema(conn);
-            ensureSchemaVersion(conn);
+            migrate(conn);
             log.info("Database initialized: {}", paths.databaseFile());
         } catch (SQLException e) {
             throw new DatabaseException("Failed to initialize database", e);
@@ -95,20 +95,56 @@ public final class Database {
         }
     }
 
-    private void ensureSchemaVersion(Connection conn) throws SQLException {
-        boolean empty;
-        try (Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM schema_version")) {
-            empty = rs.next() && rs.getInt(1) == 0;
+    private void migrate(Connection conn) throws SQLException {
+        int version = readVersion(conn);
+        if (version == 0) {
+            // 全新库：schema.sql 已是当前结构
+            writeVersion(conn, CURRENT_SCHEMA_VERSION);
+            log.info("Schema initialized at version {}", CURRENT_SCHEMA_VERSION);
+            return;
         }
-        if (empty) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO schema_version (version, applied_time) VALUES (?, ?)")) {
-                ps.setInt(1, CURRENT_SCHEMA_VERSION);
-                ps.setString(2, OffsetDateTime.now().toString());
-                ps.executeUpdate();
+        if (version >= CURRENT_SCHEMA_VERSION) {
+            return;
+        }
+        // 旧库逐版本迁移
+        if (version < 2) {
+            addColumnIfMissing(conn, "connections", "terminal_type", "TEXT");
+        }
+        writeVersion(conn, CURRENT_SCHEMA_VERSION);
+        log.info("Schema migrated {} -> {}", version, CURRENT_SCHEMA_VERSION);
+    }
+
+    private int readVersion(Connection conn) throws SQLException {
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT version FROM schema_version ORDER BY id DESC LIMIT 1")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    private void writeVersion(Connection conn, int version) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.execute("DELETE FROM schema_version");
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO schema_version (version, applied_time) VALUES (?, ?)")) {
+            ps.setInt(1, version);
+            ps.setString(2, OffsetDateTime.now().toString());
+            ps.executeUpdate();
+        }
+    }
+
+    private void addColumnIfMissing(Connection conn, String table, String column, String type) throws SQLException {
+        boolean exists;
+        String check = "SELECT COUNT(*) FROM pragma_table_info('" + table + "') WHERE name = '" + column + "'";
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(check)) {
+            exists = rs.next() && rs.getInt(1) > 0;
+        }
+        if (!exists) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
             }
-            log.info("Schema version set to {}", CURRENT_SCHEMA_VERSION);
+            log.info("Migration: added column {}.{}", table, column);
         }
     }
 

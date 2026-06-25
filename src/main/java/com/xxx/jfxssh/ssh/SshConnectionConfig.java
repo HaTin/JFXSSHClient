@@ -23,6 +23,7 @@ public final class SshConnectionConfig {
     private final Duration connectTimeout;
     private final Duration authTimeout;
     private final Duration keepAliveInterval;
+    private final String ptyType;
 
     private SshConnectionConfig(Builder b) {
         this.host = b.host;
@@ -35,6 +36,7 @@ public final class SshConnectionConfig {
         this.connectTimeout = b.connectTimeout;
         this.authTimeout = b.authTimeout;
         this.keepAliveInterval = b.keepAliveInterval;
+        this.ptyType = b.ptyType;
     }
 
     /** @return 主机 */
@@ -87,6 +89,11 @@ public final class SshConnectionConfig {
         return keepAliveInterval;
     }
 
+    /** @return 终端类型（PTY type，如 xterm-256color / vt100 / ansi / linux） */
+    public String getPtyType() {
+        return ptyType;
+    }
+
     /**
      * 创建构建器。
      *
@@ -113,6 +120,7 @@ public final class SshConnectionConfig {
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration authTimeout = Duration.ofSeconds(10);
         private Duration keepAliveInterval = Duration.ofSeconds(30);
+        private String ptyType = "xterm-256color";
 
         private Builder(String host, String username) {
             this.host = host;
@@ -164,6 +172,12 @@ public final class SshConnectionConfig {
         /** @param keepAliveInterval 保活心跳间隔（0 禁用） @return this */
         public Builder keepAliveInterval(Duration keepAliveInterval) {
             this.keepAliveInterval = keepAliveInterval;
+            return this;
+        }
+
+        /** @param ptyType 终端类型（PTY type） @return this */
+        public Builder ptyType(String ptyType) {
+            this.ptyType = ptyType;
             return this;
         }
 

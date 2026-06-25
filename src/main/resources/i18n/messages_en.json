@@ -64,6 +64,7 @@
   "dialog.connection.browse": "Browse",
   "dialog.connection.group": "Group",
   "dialog.connection.group_none": "(None)",
+  "dialog.connection.terminal_type": "Terminal Type",
   "dialog.connection.remark": "Remark",
   "dialog.connection.password_hint": "Password is encrypted with your master password.",
   "dialog.connection.required": "Name and Host are required.",

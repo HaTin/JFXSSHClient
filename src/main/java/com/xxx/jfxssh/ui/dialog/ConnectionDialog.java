@@ -42,6 +42,7 @@ public final class ConnectionDialog {
     private final PasswordField passwordField = new PasswordField();
     private final TextField keyPathField = new TextField();
     private final ComboBox<Group> groupCombo = new ComboBox<>();
+    private final ComboBox<String> terminalTypeCombo = new ComboBox<>();
     private final TextField remarkField = new TextField();
 
     /**
@@ -129,6 +130,9 @@ public final class ConnectionDialog {
             }
         });
 
+        terminalTypeCombo.getItems().setAll(
+                "xterm-256color", "xterm", "vt100", "vt220", "ansi", "linux", "screen");
+
         Button browse = new Button(I18n.t("dialog.connection.browse"));
         browse.setOnAction(e -> chooseKey());
         HBox keyBox = new HBox(8, keyPathField, browse);
@@ -147,6 +151,7 @@ public final class ConnectionDialog {
         grid.add(passwordHint, 1, r++);
         grid.addRow(r++, new Label(I18n.t("dialog.connection.private_key_path")), keyBox);
         grid.addRow(r++, new Label(I18n.t("dialog.connection.group")), groupCombo);
+        grid.addRow(r++, new Label(I18n.t("dialog.connection.terminal_type")), terminalTypeCombo);
         grid.addRow(r, new Label(I18n.t("dialog.connection.remark")), remarkField);
 
         // 记录密码相关行用于显隐
@@ -178,6 +183,7 @@ public final class ConnectionDialog {
         if (c == null) {
             portField.setText(String.valueOf(Constants.DEFAULT_PORT));
             authCombo.setValue(AuthType.PASSWORD);
+            terminalTypeCombo.setValue("xterm-256color");
             selectGroup(preselectGroupId);
             return;
         }
@@ -188,6 +194,8 @@ public final class ConnectionDialog {
         authCombo.setValue(c.getAuthType() == null ? AuthType.PASSWORD : c.getAuthType());
         keyPathField.setText(nullToEmpty(c.getPrivateKeyPath()));
         remarkField.setText(nullToEmpty(c.getRemark()));
+        terminalTypeCombo.setValue(c.getTerminalType() == null || c.getTerminalType().isBlank()
+                ? "xterm-256color" : c.getTerminalType());
         selectGroup(preselectGroupId != null ? preselectGroupId : c.getGroupId());
     }
 
@@ -225,6 +233,7 @@ public final class ConnectionDialog {
         Group group = groupCombo.getValue();
         target.setGroupId(group == null ? null : group.getId());
         target.setRemark(emptyToNull(remarkField.getText()));
+        target.setTerminalType(terminalTypeCombo.getValue());
         // 注：不写 passwordEnc（明文不落库，加密见任务7）
         return target;
     }

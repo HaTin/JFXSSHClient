@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS connections (
     private_key_path TEXT,
     group_id         INTEGER,
     remark           TEXT,
+    terminal_type    TEXT,                        -- PTY 类型：xterm-256color / xterm / vt100 / ansi / linux ...
     create_time      TEXT,
     update_time      TEXT,
     FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE SET NULL

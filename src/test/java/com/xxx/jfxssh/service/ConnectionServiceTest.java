@@ -97,4 +97,12 @@ class ConnectionServiceTest {
         c.setAuthType(AuthType.PRIVATE_KEY);
         assertThrows(IllegalArgumentException.class, () -> service.save(c));
     }
+
+    @Test
+    void terminalTypePersists() {
+        Connection c = sample();
+        c.setTerminalType("vt100");
+        Connection saved = service.save(c);
+        assertEquals("vt100", service.findById(saved.getId()).orElseThrow().getTerminalType());
+    }
 }

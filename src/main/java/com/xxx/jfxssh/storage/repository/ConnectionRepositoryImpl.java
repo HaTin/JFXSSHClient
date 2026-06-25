@@ -28,7 +28,7 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
 
     private static final String COLUMNS =
             "id, name, host, port, username, auth_type, password_enc, "
-                    + "private_key_path, group_id, remark, create_time, update_time";
+                    + "private_key_path, group_id, remark, terminal_type, create_time, update_time";
 
     private final Database database;
 
@@ -42,13 +42,13 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
     @Override
     public Connection insert(Connection c) {
         String sql = "INSERT INTO connections (name, host, port, username, auth_type, "
-                + "password_enc, private_key_path, group_id, remark, create_time, update_time) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "password_enc, private_key_path, group_id, remark, terminal_type, create_time, update_time) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = database.openConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             bindFields(ps, c);
-            ps.setString(10, c.getCreateTime());
-            ps.setString(11, c.getUpdateTime());
+            ps.setString(11, c.getCreateTime());
+            ps.setString(12, c.getUpdateTime());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -65,12 +65,12 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
     public void update(Connection c) {
         String sql = "UPDATE connections SET name = ?, host = ?, port = ?, username = ?, "
                 + "auth_type = ?, password_enc = ?, private_key_path = ?, group_id = ?, "
-                + "remark = ?, update_time = ? WHERE id = ?";
+                + "remark = ?, terminal_type = ?, update_time = ? WHERE id = ?";
         try (java.sql.Connection conn = database.openConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             bindFields(ps, c);
-            ps.setString(10, c.getUpdateTime());
-            ps.setLong(11, requireId(c));
+            ps.setString(11, c.getUpdateTime());
+            ps.setLong(12, requireId(c));
             int rows = ps.executeUpdate();
             if (rows == 0) {
                 log.warn("Update affected no rows, id={}", c.getId());
@@ -134,7 +134,7 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
         }
     }
 
-    /** 绑定参数 1..9（name..remark），时间戳与 id 由调用方按需绑定。 */
+    /** 绑定参数 1..10（name..terminal_type），时间戳与 id 由调用方按需绑定。 */
     private void bindFields(PreparedStatement ps, Connection c) throws SQLException {
         ps.setString(1, c.getName());
         ps.setString(2, c.getHost());
@@ -149,6 +149,7 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
             ps.setLong(8, c.getGroupId());
         }
         ps.setString(9, c.getRemark());
+        ps.setString(10, c.getTerminalType());
     }
 
     private List<Connection> mapAll(ResultSet rs) throws SQLException {
@@ -172,6 +173,7 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
         long groupId = rs.getLong("group_id");
         c.setGroupId(rs.wasNull() ? null : groupId);
         c.setRemark(rs.getString("remark"));
+        c.setTerminalType(rs.getString("terminal_type"));
         c.setCreateTime(rs.getString("create_time"));
         c.setUpdateTime(rs.getString("update_time"));
         return c;

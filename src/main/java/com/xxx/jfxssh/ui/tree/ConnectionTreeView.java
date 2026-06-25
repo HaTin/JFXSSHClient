@@ -190,6 +190,7 @@ public final class ConnectionTreeView {
         copy.setPasswordEnc(c.getPasswordEnc());
         copy.setGroupId(c.getGroupId());
         copy.setRemark(c.getRemark());
+        copy.setTerminalType(c.getTerminalType());
         connectionService.save(copy);
         reload();
     }
@@ -224,6 +225,9 @@ public final class ConnectionTreeView {
                 .keepAliveInterval(Duration.ofSeconds(keepAlive))
                 .connectTimeout(Duration.ofSeconds(timeout))
                 .authTimeout(Duration.ofSeconds(timeout));
+        if (c.getTerminalType() != null && !c.getTerminalType().isBlank()) {
+            builder.ptyType(c.getTerminalType());
+        }
 
         if (c.getAuthType() == AuthType.PRIVATE_KEY) {
             return builder.authType(AuthType.PRIVATE_KEY)

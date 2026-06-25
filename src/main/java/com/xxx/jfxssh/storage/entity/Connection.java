@@ -20,6 +20,7 @@ public final class Connection {
     private String privateKeyPath;
     private Long groupId;
     private String remark;
+    private String terminalType;
     private String createTime;
     private String updateTime;
 
@@ -121,6 +122,16 @@ public final class Connection {
     /** @param remark 备注 */
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    /** @return 终端类型（PTY type，如 xterm-256color；可空表示默认） */
+    public String getTerminalType() {
+        return terminalType;
+    }
+
+    /** @param terminalType 终端类型 */
+    public void setTerminalType(String terminalType) {
+        this.terminalType = terminalType;
     }
 
     /** @return 创建时间（ISO-8601） */

@@ -21,12 +21,14 @@ final class MinaSshSession implements SshSession {
     private final String host;
     private final int port;
     private final String username;
+    private final String ptyType;
 
     MinaSshSession(ClientSession session, SshConnectionConfig config) {
         this.session = session;
         this.host = config.getHost();
         this.port = config.getPort();
         this.username = config.getUsername();
+        this.ptyType = config.getPtyType();
     }
 
     @Override
@@ -53,11 +55,12 @@ final class MinaSshSession implements SshSession {
     public SshShell openShell(int columns, int rows) {
         try {
             ChannelShell channel = session.createShellChannel();
-            channel.setPtyType("xterm-256color");
+            String type = ptyType == null || ptyType.isBlank() ? "xterm-256color" : ptyType;
+            channel.setPtyType(type);
             channel.setPtyColumns(columns);
             channel.setPtyLines(rows);
             channel.open().verify(Duration.ofSeconds(10));
-            log.info("Shell opened: {}@{}:{} ({}x{})", username, host, port, columns, rows);
+            log.info("Shell opened: {}@{}:{} ({}x{}, {})", username, host, port, columns, rows, type);
             return new MinaSshShell(channel);
         } catch (IOException e) {
             throw new SshConnectException("Failed to open shell on " + host + ":" + port, e);
