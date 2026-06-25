@@ -3,7 +3,9 @@ package com.xxx.jfxssh.terminal;
 import com.jediterm.terminal.ui.JediTermWidget;
 import com.jediterm.terminal.ui.settings.DefaultSettingsProvider;
 import com.xxx.jfxssh.ssh.SshSession;
+import javafx.application.Platform;
 import javafx.embed.swing.SwingNode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import org.slf4j.Logger;
@@ -16,6 +18,9 @@ import javax.swing.SwingUtilities;
  *
  * <p>JediTerm 控件须在 Swing EDT 上创建并启动；本视图负责线程切换与生命周期，
  * 持有底层 SSH 会话以便关闭时一并释放。</p>
+ *
+ * <p>SwingNode 嵌入 Swing 存在焦点不自动转移的问题：必须在 JavaFX 层让
+ * SwingNode 获得焦点、同时在 Swing 层让 JediTerm 终端面板获得焦点，键盘输入才生效。</p>
  */
 public final class TerminalView {
 
@@ -30,6 +35,15 @@ public final class TerminalView {
     private JediTermWidget widget;
     private SshTtyConnector connector;
     private SshSession session;
+
+    /**
+     * 构建终端视图。
+     */
+    public TerminalView() {
+        swingNode.setFocusTraversable(true);
+        // 点击终端区域时把焦点交给终端（JavaFX 层 + Swing 层）
+        root.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> requestTerminalFocus());
+    }
 
     /**
      * @return 可加入 JavaFX 场景的节点
@@ -52,6 +66,19 @@ public final class TerminalView {
             widget.setTtyConnector(connector);
             widget.start();
             swingNode.setContent(widget);
+            requestTerminalFocus();
+        });
+    }
+
+    /**
+     * 将键盘焦点交给终端：JavaFX 层聚焦 SwingNode，Swing 层聚焦终端面板。
+     */
+    public void requestTerminalFocus() {
+        Platform.runLater(swingNode::requestFocus);
+        SwingUtilities.invokeLater(() -> {
+            if (widget != null) {
+                widget.getTerminalPanel().requestFocusInWindow();
+            }
         });
     }
 

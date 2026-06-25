@@ -43,6 +43,12 @@ public final class TerminalTabsPane {
         this.sshService = sshService;
         tabs.setId("TerminalTabs");
         addWelcomeTab();
+        // 切换到某终端标签时，把焦点交给它的终端
+        tabs.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            if (sel != null && sel.getUserData() instanceof TerminalView view) {
+                view.requestTerminalFocus();
+            }
+        });
     }
 
     /**
@@ -64,6 +70,7 @@ public final class TerminalTabsPane {
 
         Tab tab = new Tab(tabText(DOT_CONNECTING, name));
         tab.setContent(view.getNode());
+        tab.setUserData(view);
         tab.setOnClosed(e -> view.close());
         tabs.getTabs().add(tab);
         tabs.getSelectionModel().select(tab);
@@ -74,7 +81,10 @@ public final class TerminalTabsPane {
                 SshShell shell = session.openShell(COLUMNS, ROWS);
                 SshTtyConnector connector = new SshTtyConnector(shell, name);
                 view.attach(connector, session);
-                Platform.runLater(() -> tab.setText(tabText(DOT_CONNECTED, name)));
+                Platform.runLater(() -> {
+                    tab.setText(tabText(DOT_CONNECTED, name));
+                    view.requestTerminalFocus();
+                });
                 watchClose(shell, tab, name);
             } catch (RuntimeException ex) {
                 log.warn("Terminal connect failed for {}: {}", name, ex.getMessage());
