@@ -22,6 +22,8 @@ public final class JfxTermWidget extends JediTermWidget {
      */
     public JfxTermWidget(int columns, int rows, SettingsProvider settings) {
         super(columns, rows, settings);
+        // 终端面板支持输入法（IME），显式开启以便中文等组合输入
+        getTerminalPanel().enableInputMethods(true);
     }
 
     @Override
