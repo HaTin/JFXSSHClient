@@ -34,12 +34,12 @@ import java.util.Map;
 /**
  * 终端标签页区域（见 docs/UI_DESIGN.md）。
  *
- * <p>一个标签对应一个 SSH 会话。状态点：◐ 连接中、● 已连接、○ 断开。</p>
+ * <p>一个标签对应一个 SSH 会话。状态点：◐ 连接中、● 已连接、○ 断开。
+ * 仅在 SSH 连接成功后才创建标签；连接失败只提示，不留空标签。</p>
  *
  * <p><b>单 SwingNode + 固定布局：</b>JavaFX 多个 SwingNode 会让键盘焦点整体失效，
- * 而把同一个 SwingNode 在标签间反复换父节点又会白屏/镜像。因此这里用一个永不
- * 移动的 SwingNode 承载 Swing CardLayout：每个终端是一张卡片，顶部自定义标签条
- * 驱动 CardLayout 切卡。</p>
+ * 反复换父节点又会白屏/镜像。因此用一个永不移动的 SwingNode 承载 Swing CardLayout，
+ * 顶部自定义标签条驱动切卡。</p>
  */
 public final class TerminalTabsPane {
 
@@ -48,7 +48,6 @@ public final class TerminalTabsPane {
     private static final int COLUMNS = 80;
     private static final int ROWS = 24;
     private static final String WELCOME = "welcome";
-    private static final String DOT_CONNECTING = "◐";
     private static final String DOT_CONNECTED = "●";
     private static final String DOT_DISCONNECTED = "○";
 
@@ -93,29 +92,101 @@ public final class TerminalTabsPane {
     }
 
     /**
-     * 为连接打开终端标签。
+     * 为连接打开终端：先后台建立 SSH 连接，成功才创建标签。
      *
      * @param connection 连接
      * @param config     SSH 连接配置
      */
     public void openTerminal(Connection connection, SshConnectionConfig config) {
-        String cardId = "term-" + (counter++);
         String name = displayName(connection);
+        String target = config.getHost() + ":" + config.getPort();
+        Thread worker = new Thread(() -> {
+            try {
+                SshSession session = sshService.connect(config);
+                SshShell shell = session.openShell(COLUMNS, ROWS);
+                Platform.runLater(() -> createTab(name, config, session, shell));
+            } catch (RuntimeException ex) {
+                log.warn("Connect failed for {}: {}", target, ex.getMessage());
+                Platform.runLater(() -> UiDialogs.error(I18n.t("msg.connect.fail", target)));
+            }
+        }, "ssh-connect-" + name);
+        worker.setDaemon(true);
+        worker.start();
+    }
 
-        Entry entry = new Entry(cardId, name, connection, config);
-        entry.label = new Label(tabText(DOT_CONNECTING, name));
+    /** 连接成功后创建标签并挂载终端（FX 线程）。 */
+    private void createTab(String name, SshConnectionConfig config, SshSession session, SshShell shell) {
+        String cardId = "term-" + (counter++);
+        Entry entry = new Entry(cardId, name, config);
+
+        entry.label = new Label(tabText(DOT_CONNECTED, name));
         Button closeButton = new Button("✕");
         closeButton.setStyle("-fx-padding: 0 4 0 4; -fx-background-color: transparent;");
         closeButton.setOnAction(e -> closeCard(cardId));
         entry.header = new HBox(4, entry.label, closeButton);
         entry.header.setAlignment(Pos.CENTER_LEFT);
-        entry.header.setStyle(STYLE_TAB);
         entry.header.setOnMouseClicked(e -> selectCard(cardId));
 
         entries.put(cardId, entry);
         tabBar.getChildren().add(entry.header);
+
+        attachSession(entry, session, shell);
         selectCard(cardId);
-        connectIntoCard(cardId);
+    }
+
+    /** 在已有标签内挂载一个会话（创建 JediTerm 控件、绑定连接器、监听关闭）。 */
+    private void attachSession(Entry entry, SshSession session, SshShell shell) {
+        SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
+                () -> Platform.runLater(() -> reconnect(entry.cardId)));
+        SwingUtilities.invokeLater(() -> {
+            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
+            widget.setTtyConnector(connector);
+            widget.start();
+            cards.add(widget, entry.cardId);
+            entry.widget = widget;
+            entry.connector = connector;
+            entry.session = session;
+            if (entry.cardId.equals(selectedCardId)) {
+                ((CardLayout) cards.getLayout()).show(cards, entry.cardId);
+                widget.getTerminalPanel().requestFocusInWindow();
+            }
+            cards.revalidate();
+            cards.repaint();
+        });
+        Platform.runLater(() -> entry.label.setText(tabText(DOT_CONNECTED, entry.name)));
+        watchClose(entry.cardId, shell);
+    }
+
+    /** 断开后按回车触发：在同一标签重连，失败保留标签并标记断开。 */
+    private void reconnect(String cardId) {
+        Entry entry = entries.get(cardId);
+        if (entry == null) {
+            return;
+        }
+        entry.label.setText(tabText(DOT_DISCONNECTED, entry.name) + " ...");
+        releaseSession(entry);
+        String target = entry.config.getHost() + ":" + entry.config.getPort();
+        Thread worker = new Thread(() -> {
+            try {
+                SshSession session = sshService.connect(entry.config);
+                SshShell shell = session.openShell(COLUMNS, ROWS);
+                Platform.runLater(() -> {
+                    if (entries.containsKey(cardId)) {
+                        attachSession(entry, session, shell);
+                    } else {
+                        session.close();
+                    }
+                });
+            } catch (RuntimeException ex) {
+                log.warn("Reconnect failed for {}: {}", target, ex.getMessage());
+                Platform.runLater(() -> {
+                    entry.label.setText(tabText(DOT_DISCONNECTED, entry.name));
+                    UiDialogs.error(I18n.t("msg.connect.fail", target));
+                });
+            }
+        }, "ssh-reconnect-" + entry.name);
+        worker.setDaemon(true);
+        worker.start();
     }
 
     private void selectCard(String cardId) {
@@ -133,55 +204,6 @@ public final class TerminalTabsPane {
                 entry.widget.getTerminalPanel().requestFocusInWindow();
             }
         });
-    }
-
-    private void connectIntoCard(String cardId) {
-        Entry entry = entries.get(cardId);
-        if (entry == null) {
-            return;
-        }
-        entry.label.setText(tabText(DOT_CONNECTING, entry.name));
-        releaseSession(entry);
-
-        Thread worker = new Thread(() -> {
-            try {
-                SshSession session = sshService.connect(entry.config);
-                SshShell shell = session.openShell(COLUMNS, ROWS);
-                SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
-                        () -> Platform.runLater(() -> connectIntoCard(cardId)));
-                SwingUtilities.invokeLater(() -> {
-                    JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
-                    widget.setTtyConnector(connector);
-                    widget.start();
-                    cards.add(widget, cardId);
-                    entry.widget = widget;
-                    entry.connector = connector;
-                    entry.session = session;
-                    if (cardId.equals(selectedCardId)) {
-                        ((CardLayout) cards.getLayout()).show(cards, cardId);
-                        widget.getTerminalPanel().requestFocusInWindow();
-                    }
-                    cards.revalidate();
-                    cards.repaint();
-                });
-                Platform.runLater(() -> {
-                    entry.label.setText(tabText(DOT_CONNECTED, entry.name));
-                    if (cardId.equals(selectedCardId)) {
-                        swingNode.requestFocus();
-                    }
-                });
-                watchClose(cardId, shell);
-            } catch (RuntimeException ex) {
-                log.warn("Terminal connect failed for {}: {}", entry.name, ex.getMessage());
-                Platform.runLater(() -> {
-                    entry.label.setText(tabText(DOT_DISCONNECTED, entry.name));
-                    UiDialogs.error(I18n.t("msg.connect.fail",
-                            entry.config.getHost() + ":" + entry.config.getPort()));
-                });
-            }
-        }, "ssh-terminal-" + entry.name);
-        worker.setDaemon(true);
-        worker.start();
     }
 
     private void watchClose(String cardId, SshShell shell) {
@@ -210,7 +232,6 @@ public final class TerminalTabsPane {
         }
         tabBar.getChildren().remove(entry.header);
         releaseSession(entry);
-        // 选中其他标签，否则回到欢迎卡
         String next = entries.keySet().stream().findFirst().orElse(WELCOME);
         if (WELCOME.equals(next)) {
             selectedCardId = null;
@@ -266,7 +287,6 @@ public final class TerminalTabsPane {
     private static final class Entry {
         private final String cardId;
         private final String name;
-        private final Connection connection;
         private final SshConnectionConfig config;
         private Label label;
         private HBox header;
@@ -274,10 +294,9 @@ public final class TerminalTabsPane {
         private volatile SshTtyConnector connector;
         private volatile SshSession session;
 
-        Entry(String cardId, String name, Connection connection, SshConnectionConfig config) {
+        Entry(String cardId, String name, SshConnectionConfig config) {
             this.cardId = cardId;
             this.name = name;
-            this.connection = connection;
             this.config = config;
         }
     }
