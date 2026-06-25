@@ -64,7 +64,7 @@ DONE（SSH 连接管理：Mina SSHD，密码 + 公钥认证、保活、关闭；
 
 状态：
 
-TODO
+DONE（JediTerm 终端经 SwingNode 嵌入；SSH shell channel；一连接一 Tab，状态点 ◐●○；连接打开终端）
 
 ---
 
@@ -123,5 +123,6 @@ DONE
 - 任务2：连接管理（Service / Repository / 实体 + UI 接入）
 - 任务2.1：分组管理（Group 后端 + 连接树 UI 接入）
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
+- 任务4：多标签页 + 终端（JediTerm + SSH shell）
 - 任务6：主题切换（Light / Dark 实时）
 - 任务8：多语言（i18n）

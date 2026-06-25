@@ -41,7 +41,15 @@
       "Bash(git add *)",
       "Bash(git check-ignore *)",
       "Bash(git rm *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(curl -fsSL \"https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml\")",
+      "Bash(curl -fsSL \"https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-ui/maven-metadata.xml\")",
+      "Bash(curl -fsSL \"https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-pty/maven-metadata.xml\")",
+      "Bash(curl -fsS \"https://repo.maven.apache.org/maven2/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml\")",
+      "Bash(echo \"curl_exit=$?\")",
+      "Bash(curl -fsS \"https://cache-redirector.jetbrains.com/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(curl -fsS https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml)"
     ]
   }
 }

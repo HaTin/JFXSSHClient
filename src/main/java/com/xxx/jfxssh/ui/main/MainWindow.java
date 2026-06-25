@@ -32,6 +32,7 @@ import java.util.Locale;
 public final class MainWindow {
 
     private final AppConfig config;
+    private final TerminalTabsPane terminalTabs;
     private final ConnectionTreeView connectionTree;
     private final BorderPane root = new BorderPane();
 
@@ -51,7 +52,9 @@ public final class MainWindow {
                       GroupService groupService,
                       SshService sshService) {
         this.config = config;
-        this.connectionTree = new ConnectionTreeView(connectionService, groupService, sshService);
+        this.terminalTabs = new TerminalTabsPane(sshService);
+        this.connectionTree = new ConnectionTreeView(
+                connectionService, groupService, terminalTabs::openTerminal);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
         root.setBottom(new StatusBar().getView());
@@ -77,7 +80,7 @@ public final class MainWindow {
     private SplitPane buildCenter() {
         SplitPane split = new SplitPane(
                 connectionTree.getView(),
-                new TerminalTabsPane().getView());
+                terminalTabs.getView());
         split.setDividerPositions(
                 Constants.CONNECTION_TREE_WIDTH / Constants.DEFAULT_WINDOW_WIDTH);
         return split;

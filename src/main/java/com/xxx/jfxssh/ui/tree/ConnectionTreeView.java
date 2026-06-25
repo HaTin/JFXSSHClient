@@ -7,12 +7,11 @@ import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.GroupNode;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
-import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.storage.entity.Group;
 import com.xxx.jfxssh.ui.dialog.ConnectionDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
-import javafx.application.Platform;
+import com.xxx.jfxssh.ui.terminal.TerminalLauncher;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
@@ -28,8 +27,8 @@ import java.util.Optional;
  * 连接树组件（见 docs/UI_DESIGN.md）。
  *
  * <p>从 {@link GroupService} / {@link ConnectionService} 加载真实数据，按分组
- * 嵌套展示连接，并通过右键菜单完成分组与连接的增删改、以及连接测试
- * （{@link SshService}）。所有数据变更后重新加载树。</p>
+ * 嵌套展示连接，并通过右键菜单完成分组与连接的增删改、以及打开终端
+ * （委托 {@link TerminalLauncher}）。所有数据变更后重新加载树。</p>
  */
 public final class ConnectionTreeView {
 
@@ -37,20 +36,20 @@ public final class ConnectionTreeView {
 
     private final ConnectionService connectionService;
     private final GroupService groupService;
-    private final SshService sshService;
+    private final TerminalLauncher terminalLauncher;
     private final TreeView<TreeNodeData> tree = new TreeView<>();
 
     /**
      * @param connectionService 连接服务
      * @param groupService      分组服务
-     * @param sshService        SSH 服务
+     * @param terminalLauncher  打开终端的回调
      */
     public ConnectionTreeView(ConnectionService connectionService,
                               GroupService groupService,
-                              SshService sshService) {
+                              TerminalLauncher terminalLauncher) {
         this.connectionService = connectionService;
         this.groupService = groupService;
-        this.sshService = sshService;
+        this.terminalLauncher = terminalLauncher;
 
         tree.setId("ConnectionTree");
         tree.setMinWidth(150);
@@ -176,7 +175,7 @@ public final class ConnectionTreeView {
     }
 
     /**
-     * 测试连接（无终端前的连接验证）。密码认证时弹窗输入密码。
+     * 打开终端：构建连接配置（密码认证时弹窗输入密码），委托打开终端标签页。
      */
     private void connect(Connection c) {
         SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
@@ -195,21 +194,8 @@ public final class ConnectionTreeView {
             builder.password(pw.get());
         }
 
-        SshConnectionConfig config = builder.build();
-        String target = c.getHost() + ":" + c.getPort();
-        Thread worker = new Thread(() -> {
-            boolean ok = sshService.test(config);
-            Platform.runLater(() -> {
-                if (ok) {
-                    UiDialogs.info("app.title", I18n.t("msg.connect.success", target));
-                } else {
-                    UiDialogs.error(I18n.t("msg.connect.fail", target));
-                }
-            });
-        }, "ssh-test");
-        worker.setDaemon(true);
-        worker.start();
-        log.info("Testing connection to {}", target);
+        log.info("Opening terminal for {}:{}", c.getHost(), c.getPort());
+        terminalLauncher.open(c, builder.build());
     }
 
     // ---- 右键菜单单元格 ----

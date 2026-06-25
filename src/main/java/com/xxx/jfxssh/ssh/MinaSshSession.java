@@ -1,8 +1,12 @@
 package com.xxx.jfxssh.ssh;
 
+import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Duration;
 
 /**
  * {@link SshSession} 的 Apache Mina 实现。
@@ -43,6 +47,21 @@ final class MinaSshSession implements SshSession {
     @Override
     public boolean isOpen() {
         return session.isOpen();
+    }
+
+    @Override
+    public SshShell openShell(int columns, int rows) {
+        try {
+            ChannelShell channel = session.createShellChannel();
+            channel.setPtyType("xterm-256color");
+            channel.setPtyColumns(columns);
+            channel.setPtyLines(rows);
+            channel.open().verify(Duration.ofSeconds(10));
+            log.info("Shell opened: {}@{}:{} ({}x{})", username, host, port, columns, rows);
+            return new MinaSshShell(channel);
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to open shell on " + host + ":" + port, e);
+        }
     }
 
     @Override

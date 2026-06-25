@@ -21,6 +21,16 @@ public interface SshSession extends AutoCloseable {
     boolean isOpen();
 
     /**
+     * 打开交互式 shell 通道（PTY）。
+     *
+     * @param columns 初始列数
+     * @param rows    初始行数
+     * @return shell 通道
+     * @throws SshConnectException 打开失败时抛出
+     */
+    SshShell openShell(int columns, int rows);
+
+    /**
      * 关闭连接。
      */
     @Override

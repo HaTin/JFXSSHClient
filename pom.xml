@@ -21,9 +21,24 @@
         <sqlite.version>3.46.0.0</sqlite.version>
         <jackson.version>2.17.2</jackson.version>
         <sshd.version>2.13.2</sshd.version>
+        <jediterm.version>3.72</jediterm.version>
 
         <main.class>com.xxx.jfxssh.launcher.Main</main.class>
     </properties>
+
+    <repositories>
+        <!-- JediTerm 仅发布在 JetBrains 仓库，未上 Maven Central -->
+        <repository>
+            <id>jetbrains-intellij-dependencies</id>
+            <url>https://packages.jetbrains.team/maven/p/ij/intellij-dependencies</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <!--
@@ -67,9 +82,17 @@
             <version>${sshd.version}</version>
         </dependency>
 
-        <!--
-            JediTerm（Terminal 模块）将在终端里程碑引入，此阶段不实现。
-        -->
+        <!-- Terminal: JediTerm（终端内核 core + Swing 控件 ui，经 SwingNode 嵌入） -->
+        <dependency>
+            <groupId>org.jetbrains.jediterm</groupId>
+            <artifactId>jediterm-core</artifactId>
+            <version>${jediterm.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.jediterm</groupId>
+            <artifactId>jediterm-ui</artifactId>
+            <version>${jediterm.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -80,10 +103,10 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <!-- 使用 JDK 内置 JavaFX 模块 -->
+                    <!-- 使用 JDK 内置 JavaFX 模块（swing 用于 SwingNode 嵌入 JediTerm） -->
                     <compilerArgs>
                         <arg>--add-modules</arg>
-                        <arg>javafx.controls</arg>
+                        <arg>javafx.controls,javafx.swing</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -97,7 +120,7 @@
                     <executable>${java.home}/bin/java</executable>
                     <arguments>
                         <argument>--add-modules</argument>
-                        <argument>javafx.controls</argument>
+                        <argument>javafx.controls,javafx.swing</argument>
                         <argument>-classpath</argument>
                         <classpath/>
                         <argument>${main.class}</argument>
