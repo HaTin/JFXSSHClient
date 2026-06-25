@@ -49,7 +49,8 @@
       "Bash(echo \"curl_exit=$?\")",
       "Bash(curl -fsS \"https://cache-redirector.jetbrains.com/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml\")",
       "Bash(echo \"exit=$?\")",
-      "Bash(curl -fsS https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml)"
+      "Bash(curl -fsS https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml)",
+      "Bash(chmod +x run-mac.command)"
     ]
   }
 }
