@@ -20,18 +20,15 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
     private static final TerminalColor LIGHT_BG = new TerminalColor(0xFF, 0xFF, 0xFF);
 
     private final boolean dark;
-    private final String fontName;
-    private final float fontSize;
+    private final TerminalFontModel font;
 
     /**
-     * @param dark     是否深色（创建后固定）
-     * @param fontName 字体族
-     * @param fontSize 字号
+     * @param dark 是否深色（创建后固定）
+     * @param font 共享字体模型（运行时可变，刷新后对已有终端生效）
      */
-    public ThemedTerminalSettings(boolean dark, String fontName, float fontSize) {
+    public ThemedTerminalSettings(boolean dark, TerminalFontModel font) {
         this.dark = dark;
-        this.fontName = fontName;
-        this.fontSize = fontSize;
+        this.font = font;
     }
 
     @Override
@@ -41,11 +38,11 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
 
     @Override
     public Font getTerminalFont() {
-        return new Font(fontName, Font.PLAIN, Math.round(fontSize));
+        return new Font(font.name(), Font.PLAIN, font.size());
     }
 
     @Override
     public float getTerminalFontSize() {
-        return fontSize;
+        return font.size();
     }
 }

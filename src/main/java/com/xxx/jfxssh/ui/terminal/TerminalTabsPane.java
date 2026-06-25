@@ -9,6 +9,8 @@ import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.ssh.SshShell;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.terminal.SshTtyConnector;
+import com.xxx.jfxssh.terminal.TerminalFontModel;
+import com.xxx.jfxssh.terminal.JfxTermWidget;
 import com.xxx.jfxssh.terminal.ThemedTerminalSettings;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
@@ -64,6 +66,7 @@ public final class TerminalTabsPane {
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
     private final Map<String, Entry> entries = new HashMap<>();
+    private final TerminalFontModel fontModel;
 
     private volatile boolean dark = true;
 
@@ -78,6 +81,9 @@ public final class TerminalTabsPane {
     public TerminalTabsPane(SshService sshService, AppConfig config) {
         this.sshService = sshService;
         this.config = config;
+        this.fontModel = new TerminalFontModel(
+                config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT),
+                config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE));
         root.setId("TerminalTabs");
         tabBar.setPadding(new Insets(2));
         tabBar.setAlignment(Pos.CENTER_LEFT);
@@ -101,6 +107,24 @@ public final class TerminalTabsPane {
      */
     public BorderPane getView() {
         return root;
+    }
+
+    /**
+     * 应用字体 / 字号：立即作用于所有已打开终端（更新共享字体模型并重排），
+     * 新建终端亦使用新字体。
+     *
+     * @param fontName 字体族
+     * @param fontSize 字号
+     */
+    public void applyFont(String fontName, int fontSize) {
+        fontModel.set(fontName, fontSize);
+        java.util.List<JfxTermWidget> widgets = new java.util.ArrayList<>();
+        for (Entry e : entries.values()) {
+            if (e.widget instanceof JfxTermWidget jw) {
+                widgets.add(jw);
+            }
+        }
+        SwingUtilities.invokeLater(() -> widgets.forEach(JfxTermWidget::refreshFont));
     }
 
     /**
@@ -171,10 +195,8 @@ public final class TerminalTabsPane {
         SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
-            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new ThemedTerminalSettings(
-                    dark,
-                    config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT),
-                    config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE)));
+            JediTermWidget widget = new JfxTermWidget(COLUMNS, ROWS,
+                    new ThemedTerminalSettings(dark, fontModel));
             // 允许控件收缩到 0，避免分隔条拖动时的留白挤压
             widget.setMinimumSize(new Dimension(0, 0));
             widget.getTerminalPanel().setMinimumSize(new Dimension(0, 0));

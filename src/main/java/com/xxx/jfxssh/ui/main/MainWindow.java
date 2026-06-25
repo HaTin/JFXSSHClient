@@ -79,7 +79,13 @@ public final class MainWindow {
         this.themeManager = themeManager;
         lightThemeItem.setOnAction(e -> themeManager.applyLight());
         darkThemeItem.setOnAction(e -> themeManager.applyDark());
-        settingsItem.setOnAction(e -> new SettingsDialog(config, themeManager).showAndWait());
+        settingsItem.setOnAction(e -> {
+            new SettingsDialog(config, themeManager).showAndWait();
+            // 字体 / 字号立即应用到所有已打开终端
+            terminalTabs.applyFont(
+                    config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT),
+                    config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE));
+        });
 
         // 终端配色跟随应用主题
         terminalTabs.applyDarkTheme(themeManager.isDark());

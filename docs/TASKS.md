@@ -141,5 +141,5 @@ DONE
 
 - 设置窗口：File → Settings，TabPane General / Terminal / SSH
   - General：语言（已从 View 菜单归位）、主题、自动保存（实时生效）
-  - Terminal：字体、字号（对新建终端生效）；光标样式预留（置灰）
+  - Terminal：字体、字号（**立即应用到所有已打开终端**，JediTerm reinitFontAndResize）；光标样式预留（置灰）
   - SSH：KeepAlive、Timeout（对新连接生效）；主机密钥校验预留（置灰）
