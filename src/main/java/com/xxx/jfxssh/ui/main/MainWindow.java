@@ -3,6 +3,9 @@ package com.xxx.jfxssh.ui.main;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ConnectionService;
+import com.xxx.jfxssh.service.GroupService;
+import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.status.StatusBar;
 import com.xxx.jfxssh.ui.terminal.TerminalTabsPane;
 import com.xxx.jfxssh.ui.theme.ThemeManager;
@@ -23,14 +26,13 @@ import java.util.Locale;
  * 主窗口框架（见 docs/UI_DESIGN.md）。
  *
  * <p>BorderPane 布局组装四大区域：顶部 MenuBar、左侧 {@link ConnectionTreeView}、
- * 中间 {@link TerminalTabsPane}、底部 {@link StatusBar}。所有可见文案经
- * {@link I18n} 绑定，支持运行时语言切换。</p>
- *
- * <p>本阶段仅搭建界面框架：不含业务逻辑、SSH 连接、数据库或终端模拟器。</p>
+ * 中间 {@link TerminalTabsPane}、底部 {@link StatusBar}。连接树接入后端服务，
+ * 支持连接 / 分组的增删改查；所有可见文案经 {@link I18n} 绑定。</p>
  */
 public final class MainWindow {
 
     private final AppConfig config;
+    private final ConnectionTreeView connectionTree;
     private final BorderPane root = new BorderPane();
 
     private MenuItem lightThemeItem;
@@ -39,10 +41,17 @@ public final class MainWindow {
     /**
      * 构建主窗口界面骨架。
      *
-     * @param config 应用配置（用于持久化语言选择）
+     * @param config            应用配置（用于持久化语言选择）
+     * @param connectionService 连接服务
+     * @param groupService      分组服务
+     * @param sshService        SSH 服务
      */
-    public MainWindow(AppConfig config) {
+    public MainWindow(AppConfig config,
+                      ConnectionService connectionService,
+                      GroupService groupService,
+                      SshService sshService) {
         this.config = config;
+        this.connectionTree = new ConnectionTreeView(connectionService, groupService, sshService);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
         root.setBottom(new StatusBar().getView());
@@ -67,7 +76,7 @@ public final class MainWindow {
 
     private SplitPane buildCenter() {
         SplitPane split = new SplitPane(
-                new ConnectionTreeView().getView(),
+                connectionTree.getView(),
                 new TerminalTabsPane().getView());
         split.setDividerPositions(
                 Constants.CONNECTION_TREE_WIDTH / Constants.DEFAULT_WINDOW_WIDTH);
@@ -75,9 +84,12 @@ public final class MainWindow {
     }
 
     private MenuBar buildMenuBar() {
+        MenuItem newConnection = item("menu.file.new_connection");
+        newConnection.setOnAction(e -> connectionTree.newConnection());
+
         Menu file = menu("menu.file");
         file.getItems().addAll(
-                item("menu.file.new_connection"),
+                newConnection,
                 item("menu.file.import"),
                 item("menu.file.export"),
                 item("menu.file.settings"),

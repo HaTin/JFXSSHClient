@@ -48,5 +48,42 @@
   "tab.welcome": "欢迎",
   "tab.no_session": "暂无活动会话",
 
-  "status.ready": "就绪"
+  "status.ready": "就绪",
+
+  "tree.menu.new_connection": "新建连接",
+
+  "dialog.connection.new_title": "新建连接",
+  "dialog.connection.edit_title": "编辑连接",
+  "dialog.connection.name": "名称",
+  "dialog.connection.port": "端口",
+  "dialog.connection.username": "用户名",
+  "dialog.connection.auth": "认证方式",
+  "dialog.connection.password": "密码",
+  "dialog.connection.private_key_path": "私钥路径",
+  "dialog.connection.browse": "浏览",
+  "dialog.connection.group": "分组",
+  "dialog.connection.group_none": "（无）",
+  "dialog.connection.remark": "备注",
+  "dialog.connection.password_hint": "密码暂不保存（待加密功能）。",
+  "dialog.connection.required": "名称与主机必填。",
+  "dialog.connection.delete_title": "删除连接",
+  "dialog.connection.delete_confirm": "删除连接“{0}”？",
+  "dialog.connection.duplicate_suffix": "（副本）",
+
+  "auth.password": "密码",
+  "auth.private_key": "公钥",
+
+  "dialog.group.add_title": "添加分组",
+  "dialog.group.add_prompt": "分组名称：",
+  "dialog.group.rename_title": "重命名分组",
+  "dialog.group.rename_prompt": "新名称：",
+  "dialog.group.delete_title": "删除分组",
+  "dialog.group.delete_confirm": "删除分组“{0}”及其子分组？其中的连接将变为未分组。",
+
+  "dialog.password.title": "密码",
+  "dialog.password.prompt": "{0} 的密码：",
+
+  "msg.connect.success": "已成功连接到 {0}。",
+  "msg.connect.fail": "连接 {0} 失败。",
+  "common.error": "错误"
 }

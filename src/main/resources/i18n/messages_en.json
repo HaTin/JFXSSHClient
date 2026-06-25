@@ -48,5 +48,42 @@
   "tab.welcome": "Welcome",
   "tab.no_session": "No active session",
 
-  "status.ready": "Ready"
+  "status.ready": "Ready",
+
+  "tree.menu.new_connection": "New Connection",
+
+  "dialog.connection.new_title": "New Connection",
+  "dialog.connection.edit_title": "Edit Connection",
+  "dialog.connection.name": "Name",
+  "dialog.connection.port": "Port",
+  "dialog.connection.username": "Username",
+  "dialog.connection.auth": "Authentication",
+  "dialog.connection.password": "Password",
+  "dialog.connection.private_key_path": "Private Key Path",
+  "dialog.connection.browse": "Browse",
+  "dialog.connection.group": "Group",
+  "dialog.connection.group_none": "(None)",
+  "dialog.connection.remark": "Remark",
+  "dialog.connection.password_hint": "Password is not saved yet (pending encryption).",
+  "dialog.connection.required": "Name and Host are required.",
+  "dialog.connection.delete_title": "Delete Connection",
+  "dialog.connection.delete_confirm": "Delete connection \"{0}\"?",
+  "dialog.connection.duplicate_suffix": " (copy)",
+
+  "auth.password": "Password",
+  "auth.private_key": "Private Key",
+
+  "dialog.group.add_title": "Add Group",
+  "dialog.group.add_prompt": "Group name:",
+  "dialog.group.rename_title": "Rename Group",
+  "dialog.group.rename_prompt": "New name:",
+  "dialog.group.delete_title": "Delete Group",
+  "dialog.group.delete_confirm": "Delete group \"{0}\" and its sub-groups? Connections will be ungrouped.",
+
+  "dialog.password.title": "Password",
+  "dialog.password.prompt": "Password for {0}:",
+
+  "msg.connect.success": "Connected successfully to {0}.",
+  "msg.connect.fail": "Failed to connect to {0}.",
+  "common.error": "Error"
 }

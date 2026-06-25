@@ -4,7 +4,14 @@ import com.xxx.jfxssh.common.AppPaths;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ConnectionService;
+import com.xxx.jfxssh.service.ConnectionServiceImpl;
+import com.xxx.jfxssh.service.GroupService;
+import com.xxx.jfxssh.service.GroupServiceImpl;
+import com.xxx.jfxssh.ssh.MinaSshService;
 import com.xxx.jfxssh.storage.Database;
+import com.xxx.jfxssh.storage.repository.ConnectionRepositoryImpl;
+import com.xxx.jfxssh.storage.repository.GroupRepositoryImpl;
 import com.xxx.jfxssh.ui.main.MainWindow;
 import com.xxx.jfxssh.ui.theme.ThemeManager;
 import javafx.application.Application;
@@ -18,12 +25,14 @@ import java.util.Locale;
 /**
  * JavaFX 应用入口。
  *
- * <p>负责装配基础设施（路径、配置、国际化、数据库）并展示主窗口。
- * 不包含业务逻辑、SSH 或终端实现。</p>
+ * <p>装配基础设施（路径、配置、国际化、数据库）与业务服务（连接 / 分组 / SSH），
+ * 注入主窗口并展示。退出时停止 SSH 客户端。</p>
  */
 public final class JfxSshApplication extends Application {
 
     private static final Logger log = LoggerFactory.getLogger(JfxSshApplication.class);
+
+    private MinaSshService sshService;
 
     @Override
     public void start(Stage stage) {
@@ -39,7 +48,13 @@ public final class JfxSshApplication extends Application {
         Database database = new Database(paths);
         database.init();
 
-        MainWindow mainWindow = new MainWindow(config);
+        ConnectionService connectionService =
+                new ConnectionServiceImpl(new ConnectionRepositoryImpl(database));
+        GroupService groupService =
+                new GroupServiceImpl(new GroupRepositoryImpl(database));
+        sshService = new MinaSshService();
+
+        MainWindow mainWindow = new MainWindow(config, connectionService, groupService, sshService);
         Scene scene = new Scene(mainWindow.getRoot(),
                 Constants.DEFAULT_WINDOW_WIDTH, Constants.DEFAULT_WINDOW_HEIGHT);
 
@@ -54,6 +69,13 @@ public final class JfxSshApplication extends Application {
         log.info("{} started.", Constants.APP_NAME);
     }
 
+    @Override
+    public void stop() {
+        if (sshService != null) {
+            sshService.close();
+        }
+    }
+
     private Locale resolveLocale(AppConfig config) {
         String saved = config.get(AppConfig.KEY_LANGUAGE, "");
         if (!saved.isBlank()) {
@@ -63,4 +85,3 @@ public final class JfxSshApplication extends Application {
         return "zh".equals(Locale.getDefault().getLanguage()) ? I18n.ZH_CN : I18n.EN;
     }
 }
-

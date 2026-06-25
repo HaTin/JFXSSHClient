@@ -34,7 +34,7 @@ DONE（BorderPane + MenuBar + ConnectionTree + TerminalTabs + StatusBar，含连
 
 状态：
 
-DONE（Connection 实体 + ConnectionRepository + ConnectionService，SQLite 增删改查；UI 接入待后续）
+DONE（后端 + UI：连接树加载真实数据，新建/编辑/删除/复制连接对话框）
 
 ---
 
@@ -44,7 +44,7 @@ DONE（Connection 实体 + ConnectionRepository + ConnectionService，SQLite 增
 
 状态：
 
-进行中（后端 DONE：Group 实体 + GroupRepository + GroupService，含树构建与级联删除；连接树 UI 接入待做）
+DONE（后端 + UI：连接树按分组嵌套展示，右键添加/重命名/删除分组）
 
 ---
 
@@ -120,8 +120,8 @@ DONE
 
 - 任务0：项目基础骨架
 - 任务1：主窗口框架
-- 任务2：连接管理（Service / Repository / 实体）
-- 任务2.1：分组管理后端（Group Service / Repository / 实体）
+- 任务2：连接管理（Service / Repository / 实体 + UI 接入）
+- 任务2.1：分组管理（Group 后端 + 连接树 UI 接入）
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
 - 任务6：主题切换（Light / Dark 实时）
 - 任务8：多语言（i18n）
