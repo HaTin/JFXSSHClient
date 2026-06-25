@@ -22,12 +22,12 @@ import javafx.scene.layout.StackPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,9 +37,10 @@ import java.util.Map;
  * <p>一个标签对应一个 SSH 会话。状态点：◐ 连接中、● 已连接、○ 断开。
  * 仅在 SSH 连接成功后才创建标签；连接失败只提示，不留空标签。</p>
  *
- * <p><b>单 SwingNode + 固定布局：</b>JavaFX 多个 SwingNode 会让键盘焦点整体失效，
- * 反复换父节点又会白屏/镜像。因此用一个永不移动的 SwingNode 承载 Swing CardLayout，
- * 顶部自定义标签条驱动切卡。</p>
+ * <p><b>单 SwingNode + 内容切换：</b>JavaFX 多个 SwingNode 会让键盘焦点整体失效，
+ * 因此全程只用一个永不移动的 SwingNode；切换标签时用 {@code setContent} 把它的
+ * 内容直接设为选中终端的控件——强制重新渲染，避免 CardLayout 切卡后画面滞留
+ * （需点击才刷新）的问题。未显示的会话仍在后台保持。</p>
  */
 public final class TerminalTabsPane {
 
@@ -47,7 +48,6 @@ public final class TerminalTabsPane {
 
     private static final int COLUMNS = 80;
     private static final int ROWS = 24;
-    private static final String WELCOME = "welcome";
     private static final String DOT_CONNECTED = "●";
     private static final String DOT_DISCONNECTED = "○";
 
@@ -59,9 +59,9 @@ public final class TerminalTabsPane {
     private final BorderPane root = new BorderPane();
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
-    private final JPanel cards = new JPanel(new CardLayout());
     private final Map<String, Entry> entries = new HashMap<>();
 
+    private volatile JComponent welcomePanel;
     private String selectedCardId;
     private int counter;
 
@@ -79,8 +79,8 @@ public final class TerminalTabsPane {
         SwingUtilities.invokeLater(() -> {
             JPanel welcome = new JPanel(new BorderLayout());
             welcome.add(new JLabel(I18n.t("tab.no_session"), SwingConstants.CENTER), BorderLayout.CENTER);
-            cards.add(welcome, WELCOME);
-            swingNode.setContent(cards);
+            welcomePanel = welcome;
+            swingNode.setContent(welcome);
         });
     }
 
@@ -130,8 +130,9 @@ public final class TerminalTabsPane {
         entries.put(cardId, entry);
         tabBar.getChildren().add(entry.header);
 
+        selectedCardId = cardId;
         attachSession(entry, session, shell);
-        selectCard(cardId);
+        updateTabStyles();
     }
 
     /** 在已有标签内挂载一个会话（创建 JediTerm 控件、绑定连接器、监听关闭）。 */
@@ -142,16 +143,12 @@ public final class TerminalTabsPane {
             JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
             widget.setTtyConnector(connector);
             widget.start();
-            cards.add(widget, entry.cardId);
             entry.widget = widget;
             entry.connector = connector;
             entry.session = session;
             if (entry.cardId.equals(selectedCardId)) {
-                ((CardLayout) cards.getLayout()).show(cards, entry.cardId);
-                widget.getTerminalPanel().requestFocusInWindow();
+                showContent(widget);
             }
-            cards.revalidate();
-            cards.repaint();
         });
         Platform.runLater(() -> entry.label.setText(tabText(DOT_CONNECTED, entry.name)));
         watchClose(entry.cardId, shell);
@@ -191,19 +188,28 @@ public final class TerminalTabsPane {
 
     private void selectCard(String cardId) {
         selectedCardId = cardId;
-        for (Entry e : entries.values()) {
-            e.header.setStyle(e.cardId.equals(cardId) ? STYLE_TAB_SELECTED : STYLE_TAB);
-        }
+        updateTabStyles();
         Entry entry = entries.get(cardId);
+        JComponent content = entry != null ? entry.widget : null;
+        showContent(content);
+    }
+
+    /** 将 SwingNode 内容切换为给定控件（null 显示欢迎面板），并聚焦。 */
+    private void showContent(JComponent component) {
         Platform.runLater(swingNode::requestFocus);
         SwingUtilities.invokeLater(() -> {
-            ((CardLayout) cards.getLayout()).show(cards, cardId);
-            cards.revalidate();
-            cards.repaint();
-            if (entry != null && entry.widget != null) {
-                entry.widget.getTerminalPanel().requestFocusInWindow();
+            JComponent target = component != null ? component : welcomePanel;
+            swingNode.setContent(target);
+            if (target instanceof JediTermWidget terminal) {
+                terminal.getTerminalPanel().requestFocusInWindow();
             }
         });
+    }
+
+    private void updateTabStyles() {
+        for (Entry e : entries.values()) {
+            e.header.setStyle(e.cardId.equals(selectedCardId) ? STYLE_TAB_SELECTED : STYLE_TAB);
+        }
     }
 
     private void watchClose(String cardId, SshShell shell) {
@@ -232,14 +238,10 @@ public final class TerminalTabsPane {
         }
         tabBar.getChildren().remove(entry.header);
         releaseSession(entry);
-        String next = entries.keySet().stream().findFirst().orElse(WELCOME);
-        if (WELCOME.equals(next)) {
+        String next = entries.keySet().stream().findFirst().orElse(null);
+        if (next == null) {
             selectedCardId = null;
-            SwingUtilities.invokeLater(() -> {
-                ((CardLayout) cards.getLayout()).show(cards, WELCOME);
-                cards.revalidate();
-                cards.repaint();
-            });
+            showContent(null);
         } else {
             selectCard(next);
         }
@@ -260,10 +262,7 @@ public final class TerminalTabsPane {
             oldSession.close();
         }
         if (oldWidget != null) {
-            SwingUtilities.invokeLater(() -> {
-                cards.remove(oldWidget);
-                oldWidget.close();
-            });
+            SwingUtilities.invokeLater(oldWidget::close);
         }
     }
 
