@@ -6,12 +6,16 @@ import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.ConnectionServiceImpl;
+import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.service.GroupServiceImpl;
+import com.xxx.jfxssh.service.SettingsService;
+import com.xxx.jfxssh.service.SettingsServiceImpl;
 import com.xxx.jfxssh.ssh.MinaSshService;
 import com.xxx.jfxssh.storage.Database;
 import com.xxx.jfxssh.storage.repository.ConnectionRepositoryImpl;
 import com.xxx.jfxssh.storage.repository.GroupRepositoryImpl;
+import com.xxx.jfxssh.storage.repository.SettingsRepositoryImpl;
 import com.xxx.jfxssh.ui.main.MainWindow;
 import com.xxx.jfxssh.ui.theme.ThemeManager;
 import javafx.application.Application;
@@ -52,9 +56,12 @@ public final class JfxSshApplication extends Application {
                 new ConnectionServiceImpl(new ConnectionRepositoryImpl(database));
         GroupService groupService =
                 new GroupServiceImpl(new GroupRepositoryImpl(database));
+        SettingsService settingsService =
+                new SettingsServiceImpl(new SettingsRepositoryImpl(database));
+        CredentialVault vault = new CredentialVault(settingsService);
         sshService = new MinaSshService();
 
-        MainWindow mainWindow = new MainWindow(config, connectionService, groupService, sshService);
+        MainWindow mainWindow = new MainWindow(config, connectionService, groupService, sshService, vault);
         Scene scene = new Scene(mainWindow.getRoot(),
                 Constants.DEFAULT_WINDOW_WIDTH, Constants.DEFAULT_WINDOW_HEIGHT);
 

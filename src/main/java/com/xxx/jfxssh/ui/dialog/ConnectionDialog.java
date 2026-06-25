@@ -82,6 +82,13 @@ public final class ConnectionDialog {
         return dialog.showAndWait();
     }
 
+    /**
+     * @return 用户在密码框输入的明文（密码认证用，可空）；加密与持久化由调用方处理
+     */
+    public String getPlainPassword() {
+        return passwordField.getText();
+    }
+
     private GridPane buildForm(List<Group> groups) {
         GridPane grid = new GridPane();
         grid.setHgap(8);

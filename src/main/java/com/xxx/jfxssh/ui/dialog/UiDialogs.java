@@ -1,14 +1,17 @@
 package com.xxx.jfxssh.ui.dialog;
 
 import com.xxx.jfxssh.common.i18n.I18n;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 
 import java.util.Optional;
@@ -105,6 +108,62 @@ public final class UiDialogs {
         box.setPadding(new Insets(12));
         dialog.getDialogPane().setContent(box);
         dialog.setResultConverter(bt -> bt == ok ? field.getText() : null);
+        return dialog.showAndWait();
+    }
+
+    /**
+     * 首次设置主密码对话框（输入 + 确认）。
+     *
+     * @return 主密码字符数组，取消或不合法返回 empty
+     */
+    public static Optional<char[]> promptNewMasterPassword() {
+        Dialog<char[]> dialog = new Dialog<>();
+        dialog.setTitle(I18n.t("dialog.master.set_title"));
+        ButtonType ok = okButton();
+        dialog.getDialogPane().getButtonTypes().addAll(ok, cancelButton());
+
+        PasswordField first = new PasswordField();
+        PasswordField second = new PasswordField();
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.setPadding(new Insets(12));
+        grid.addRow(0, new Label(I18n.t("dialog.master.set_prompt")), first);
+        grid.addRow(1, new Label(I18n.t("dialog.master.confirm_prompt")), second);
+        dialog.getDialogPane().setContent(grid);
+
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ok);
+        okButton.addEventFilter(ActionEvent.ACTION, e -> {
+            String a = first.getText();
+            String b = second.getText();
+            if (a == null || a.isEmpty()) {
+                error(I18n.t("dialog.master.empty"));
+                e.consume();
+            } else if (!a.equals(b)) {
+                error(I18n.t("dialog.master.mismatch"));
+                e.consume();
+            }
+        });
+        dialog.setResultConverter(bt -> bt == ok ? first.getText().toCharArray() : null);
+        return dialog.showAndWait();
+    }
+
+    /**
+     * 解锁主密码对话框。
+     *
+     * @return 主密码字符数组，取消返回 empty
+     */
+    public static Optional<char[]> promptMasterPassword() {
+        Dialog<char[]> dialog = new Dialog<>();
+        dialog.setTitle(I18n.t("dialog.master.unlock_title"));
+        ButtonType ok = okButton();
+        dialog.getDialogPane().getButtonTypes().addAll(ok, cancelButton());
+
+        PasswordField field = new PasswordField();
+        VBox box = new VBox(8, new Label(I18n.t("dialog.master.unlock_prompt")), field);
+        box.setPadding(new Insets(12));
+        dialog.getDialogPane().setContent(box);
+        dialog.setResultConverter(bt -> bt == ok ? field.getText().toCharArray() : null);
         return dialog.showAndWait();
     }
 }

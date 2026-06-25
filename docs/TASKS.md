@@ -94,7 +94,7 @@ DONE（ThemeManager 实时切换 + 持久化，View 菜单已接）
 
 状态：
 
-TODO
+DONE（CredentialCipher + CredentialVault + SettingsService；保存连接时加密、连接时解密）
 
 ---
 
@@ -125,4 +125,5 @@ DONE
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
 - 任务4：多标签页 + 终端（JediTerm + SSH shell）
 - 任务6：主题切换（Light / Dark 实时）
+- 任务7：凭据加密（主密码 + PBKDF2 + AES-256-GCM）
 - 任务8：多语言（i18n）

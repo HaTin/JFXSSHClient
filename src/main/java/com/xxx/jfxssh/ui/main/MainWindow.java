@@ -4,6 +4,7 @@ import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.service.ConnectionService;
+import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.status.StatusBar;
@@ -27,7 +28,7 @@ import java.util.Locale;
  *
  * <p>BorderPane 布局组装四大区域：顶部 MenuBar、左侧 {@link ConnectionTreeView}、
  * 中间 {@link TerminalTabsPane}、底部 {@link StatusBar}。连接树接入后端服务，
- * 支持连接 / 分组的增删改查；所有可见文案经 {@link I18n} 绑定。</p>
+ * 支持连接 / 分组的增删改查与凭据加密；所有可见文案经 {@link I18n} 绑定。</p>
  */
 public final class MainWindow {
 
@@ -46,15 +47,17 @@ public final class MainWindow {
      * @param connectionService 连接服务
      * @param groupService      分组服务
      * @param sshService        SSH 服务
+     * @param vault             凭据保险库
      */
     public MainWindow(AppConfig config,
                       ConnectionService connectionService,
                       GroupService groupService,
-                      SshService sshService) {
+                      SshService sshService,
+                      CredentialVault vault) {
         this.config = config;
         this.terminalTabs = new TerminalTabsPane(sshService);
         this.connectionTree = new ConnectionTreeView(
-                connectionService, groupService, terminalTabs::openTerminal);
+                connectionService, groupService, terminalTabs::openTerminal, vault);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
         root.setBottom(new StatusBar().getView());

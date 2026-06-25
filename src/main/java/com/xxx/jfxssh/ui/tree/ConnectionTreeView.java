@@ -4,6 +4,7 @@ import com.xxx.jfxssh.common.AuthType;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.service.ConnectionService;
+import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupNode;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
@@ -28,7 +29,8 @@ import java.util.Optional;
  *
  * <p>从 {@link GroupService} / {@link ConnectionService} 加载真实数据，按分组
  * 嵌套展示连接，并通过右键菜单完成分组与连接的增删改、以及打开终端
- * （委托 {@link TerminalLauncher}）。所有数据变更后重新加载树。</p>
+ * （委托 {@link TerminalLauncher}）。连接密码经 {@link CredentialVault} 加密保存、
+ * 连接时解密。所有数据变更后重新加载树。</p>
  */
 public final class ConnectionTreeView {
 
@@ -37,19 +39,23 @@ public final class ConnectionTreeView {
     private final ConnectionService connectionService;
     private final GroupService groupService;
     private final TerminalLauncher terminalLauncher;
+    private final CredentialVault vault;
     private final TreeView<TreeNodeData> tree = new TreeView<>();
 
     /**
      * @param connectionService 连接服务
      * @param groupService      分组服务
      * @param terminalLauncher  打开终端的回调
+     * @param vault             凭据保险库（密码加解密）
      */
     public ConnectionTreeView(ConnectionService connectionService,
                               GroupService groupService,
-                              TerminalLauncher terminalLauncher) {
+                              TerminalLauncher terminalLauncher,
+                              CredentialVault vault) {
         this.connectionService = connectionService;
         this.groupService = groupService;
         this.terminalLauncher = terminalLauncher;
+        this.vault = vault;
 
         tree.setId("ConnectionTree");
         tree.setMinWidth(150);
@@ -134,21 +140,35 @@ public final class ConnectionTreeView {
     // ---- 连接操作 ----
 
     private void createConnection(Group group) {
-        new ConnectionDialog(null, groupService.findAll(), group == null ? null : group.getId())
-                .showAndWait()
-                .ifPresent(c -> {
-                    connectionService.save(c);
-                    reload();
-                });
+        ConnectionDialog dialog = new ConnectionDialog(
+                null, groupService.findAll(), group == null ? null : group.getId());
+        dialog.showAndWait().ifPresent(c -> {
+            applyPassword(c, dialog.getPlainPassword());
+            connectionService.save(c);
+            reload();
+        });
     }
 
     private void editConnection(Connection connection) {
-        new ConnectionDialog(connection, groupService.findAll(), connection.getGroupId())
-                .showAndWait()
-                .ifPresent(c -> {
-                    connectionService.update(c);
-                    reload();
-                });
+        ConnectionDialog dialog = new ConnectionDialog(
+                connection, groupService.findAll(), connection.getGroupId());
+        dialog.showAndWait().ifPresent(c -> {
+            applyPassword(c, dialog.getPlainPassword());
+            connectionService.update(c);
+            reload();
+        });
+    }
+
+    /** 若输入了密码（密码认证），用保险库加密后写入；用户取消主密码则不保存密码。 */
+    private void applyPassword(Connection c, String plain) {
+        if (c.getAuthType() != AuthType.PASSWORD || plain == null || plain.isBlank()) {
+            return;
+        }
+        if (ensureUnlocked()) {
+            c.setPasswordEnc(vault.encrypt(plain));
+        } else {
+            UiDialogs.info("app.title", I18n.t("dialog.master.not_saved"));
+        }
     }
 
     private void duplicateConnection(Connection c) {
@@ -160,6 +180,7 @@ public final class ConnectionTreeView {
         copy.setUsername(c.getUsername());
         copy.setAuthType(c.getAuthType());
         copy.setPrivateKeyPath(c.getPrivateKeyPath());
+        copy.setPasswordEnc(c.getPasswordEnc());
         copy.setGroupId(c.getGroupId());
         copy.setRemark(c.getRemark());
         connectionService.save(copy);
@@ -175,7 +196,8 @@ public final class ConnectionTreeView {
     }
 
     /**
-     * 打开终端：构建连接配置（密码认证时弹窗输入密码），委托打开终端标签页。
+     * 打开终端：构建连接配置（密码认证优先用已保存的加密密码，否则弹窗输入），
+     * 委托打开终端标签页。
      */
     private void connect(Connection c) {
         SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
@@ -185,17 +207,63 @@ public final class ConnectionTreeView {
         if (c.getAuthType() == AuthType.PRIVATE_KEY) {
             builder.privateKeyPath(c.getPrivateKeyPath());
         } else {
-            Optional<String> pw = UiDialogs.promptPassword(
-                    I18n.t("dialog.password.title"),
-                    I18n.t("dialog.password.prompt", c.getHost()));
-            if (pw.isEmpty()) {
+            String password = resolvePassword(c);
+            if (password == null) {
                 return;
             }
-            builder.password(pw.get());
+            builder.password(password);
         }
 
         log.info("Opening terminal for {}:{}", c.getHost(), c.getPort());
         terminalLauncher.open(c, builder.build());
+    }
+
+    /** 取密码：有已保存密文则解锁解密，否则弹窗输入；用户取消返回 null。 */
+    private String resolvePassword(Connection c) {
+        String enc = c.getPasswordEnc();
+        if (enc != null && !enc.isBlank() && ensureUnlocked()) {
+            try {
+                return vault.decrypt(enc);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to decrypt stored password for {}: {}", c.getHost(), ex.getMessage());
+            }
+        }
+        return UiDialogs.promptPassword(
+                I18n.t("dialog.password.title"),
+                I18n.t("dialog.password.prompt", c.getHost())).orElse(null);
+    }
+
+    /** 确保保险库已解锁：未初始化则引导设置主密码，已初始化则要求输入主密码。 */
+    private boolean ensureUnlocked() {
+        if (vault.isUnlocked()) {
+            return true;
+        }
+        if (!vault.isInitialized()) {
+            Optional<char[]> master = UiDialogs.promptNewMasterPassword();
+            if (master.isEmpty()) {
+                return false;
+            }
+            try {
+                vault.initialize(master.get());
+            } finally {
+                CredentialVault.wipe(master.get());
+            }
+            return true;
+        }
+        Optional<char[]> master = UiDialogs.promptMasterPassword();
+        if (master.isEmpty()) {
+            return false;
+        }
+        boolean ok;
+        try {
+            ok = vault.unlock(master.get());
+        } finally {
+            CredentialVault.wipe(master.get());
+        }
+        if (!ok) {
+            UiDialogs.error(I18n.t("dialog.master.wrong"));
+        }
+        return ok;
     }
 
     // ---- 右键菜单单元格 ----
