@@ -129,7 +129,6 @@ public final class SettingsDialog {
 
     private Tab sshTab() {
         hostKeyVerifyBox.setText(I18n.t("settings.ssh.host_key_verify"));
-        hostKeyVerifyBox.setDisable(true); // 预留：known_hosts 校验未实现
 
         GridPane grid = grid();
         grid.addRow(0, new Label(I18n.t("settings.ssh.keepalive")), keepAliveSpinner);
@@ -160,7 +159,7 @@ public final class SettingsDialog {
                 config.getInt(AppConfig.KEY_SSH_KEEPALIVE, AppConfig.DEFAULT_SSH_KEEPALIVE));
         timeoutSpinner.getValueFactory().setValue(
                 config.getInt(AppConfig.KEY_SSH_TIMEOUT, AppConfig.DEFAULT_SSH_TIMEOUT));
-        hostKeyVerifyBox.setSelected(config.getBoolean(AppConfig.KEY_SSH_HOSTKEY_VERIFY, false));
+        hostKeyVerifyBox.setSelected(config.getBoolean(AppConfig.KEY_SSH_HOSTKEY_VERIFY, AppConfig.DEFAULT_SSH_HOSTKEY_VERIFY));
     }
 
     private void apply() {

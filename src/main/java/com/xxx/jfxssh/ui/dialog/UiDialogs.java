@@ -1,6 +1,8 @@
 package com.xxx.jfxssh.ui.dialog;
 
 import com.xxx.jfxssh.common.i18n.I18n;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
@@ -14,6 +16,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.util.Optional;
@@ -266,5 +269,57 @@ public final class UiDialogs {
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.t("dialog.connection.private_key_path"));
         return Optional.ofNullable(chooser.showOpenDialog(null));
+    }
+
+    private static final int HOST_KEY_COUNTDOWN_SECONDS = 5;
+
+    /**
+     * 主机密钥变更警告对话框。"仍然继续"按钮倒计时若干秒后才可点，强制用户阅读。
+     *
+     * @param host     主机
+     * @param port     端口
+     * @param stored   已记录指纹
+     * @param received 本次收到指纹
+     * @return 用户选择继续返回 true
+     */
+    public static boolean confirmHostKeyMismatch(String host, int port, String stored, String received) {
+        Dialog<Boolean> dialog = new Dialog<>();
+        dialog.setTitle(I18n.t("dialog.hostkey.title"));
+
+        ButtonType cont = new ButtonType(I18n.t("dialog.hostkey.continue"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancel = new ButtonType(I18n.t("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(cancel, cont);
+
+        Label warning = new Label(I18n.t("dialog.hostkey.warning", host + ":" + port));
+        warning.setWrapText(true);
+        warning.setStyle("-fx-text-fill: #d33; -fx-font-weight: bold;");
+        Label storedLabel = new Label(I18n.t("dialog.hostkey.stored", stored));
+        storedLabel.setWrapText(true);
+        Label receivedLabel = new Label(I18n.t("dialog.hostkey.received", received));
+        receivedLabel.setWrapText(true);
+        VBox box = new VBox(8, warning, storedLabel, receivedLabel);
+        box.setPadding(new Insets(14));
+        box.setMaxWidth(460);
+        dialog.getDialogPane().setContent(box);
+
+        Button continueButton = (Button) dialog.getDialogPane().lookupButton(cont);
+        continueButton.setDisable(true);
+        int[] remaining = {HOST_KEY_COUNTDOWN_SECONDS};
+        continueButton.setText(I18n.t("dialog.hostkey.continue") + " (" + remaining[0] + ")");
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), (ActionEvent e) -> {
+            remaining[0]--;
+            if (remaining[0] <= 0) {
+                continueButton.setText(I18n.t("dialog.hostkey.continue"));
+                continueButton.setDisable(false);
+            } else {
+                continueButton.setText(I18n.t("dialog.hostkey.continue") + " (" + remaining[0] + ")");
+            }
+        }));
+        timeline.setCycleCount(HOST_KEY_COUNTDOWN_SECONDS);
+        timeline.play();
+        dialog.setOnHidden(e -> timeline.stop());
+
+        dialog.setResultConverter(bt -> bt == cont);
+        return Boolean.TRUE.equals(dialog.showAndWait().orElse(false));
     }
 }

@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ssh;
 import com.xxx.jfxssh.common.AuthType;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.core.CoreModuleProperties;
@@ -19,8 +20,8 @@ import java.nio.file.Path;
  * {@link ClientSession} 并完成密码 / 公钥认证。实现 {@link AutoCloseable}，应用
  * 退出时调用 {@link #close()} 停止客户端。</p>
  *
- * <p>当前服务器主机密钥校验采用接受全部（AcceptAll）。known_hosts 校验属
- * 设置项「SSH → Host Key Verify」（见 UI_DESIGN.md），后续补充。</p>
+ * <p>服务器主机密钥校验由注入的 {@link ServerKeyVerifier} 决定（known_hosts
+ * 校验见 {@link KnownHostsVerifier}）。</p>
  */
 public final class MinaSshService implements SshService, AutoCloseable {
 
@@ -30,11 +31,18 @@ public final class MinaSshService implements SshService, AutoCloseable {
     private volatile boolean started;
 
     /**
-     * 创建服务（尚不启动底层客户端）。
+     * 创建服务（接受全部主机密钥，便于测试）。
      */
     public MinaSshService() {
+        this(AcceptAllServerKeyVerifier.INSTANCE);
+    }
+
+    /**
+     * @param serverKeyVerifier 主机密钥校验器
+     */
+    public MinaSshService(ServerKeyVerifier serverKeyVerifier) {
         this.client = SshClient.setUpDefaultClient();
-        this.client.setServerKeyVerifier(AcceptAllServerKeyVerifier.INSTANCE);
+        this.client.setServerKeyVerifier(serverKeyVerifier);
     }
 
     @Override

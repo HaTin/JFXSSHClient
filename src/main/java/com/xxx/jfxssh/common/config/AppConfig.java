@@ -61,8 +61,11 @@ public final class AppConfig {
     /** SSH 超时默认秒数。 */
     public static final int DEFAULT_SSH_TIMEOUT = 10;
 
-    /** SSH 主机密钥校验（预留，当前接受全部）。 */
+    /** SSH 主机密钥校验（known_hosts，TOFU）。 */
     public static final String KEY_SSH_HOSTKEY_VERIFY = "ssh.hostkey_verify";
+
+    /** 主机密钥校验默认开启。 */
+    public static final boolean DEFAULT_SSH_HOSTKEY_VERIFY = true;
 
     private final AppPaths paths;
     private final Properties properties = new Properties();

@@ -106,6 +106,12 @@
   "settings.ssh.timeout": "超时（秒）",
   "settings.ssh.host_key_verify": "主机密钥校验",
 
+  "dialog.hostkey.title": "主机密钥已变更",
+  "dialog.hostkey.warning": "警告：{0} 的主机密钥发生了变化。这可能意味着中间人攻击，或服务器被重装过。请确认后再继续。",
+  "dialog.hostkey.stored": "已记录：{0}",
+  "dialog.hostkey.received": "本次收到：{0}",
+  "dialog.hostkey.continue": "仍然继续",
+
   "auth.password": "密码",
   "auth.private_key": "公钥",
 

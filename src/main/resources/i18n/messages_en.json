@@ -106,6 +106,12 @@
   "settings.ssh.timeout": "Timeout (s)",
   "settings.ssh.host_key_verify": "Host Key Verify",
 
+  "dialog.hostkey.title": "Host Key Changed",
+  "dialog.hostkey.warning": "WARNING: The host key for {0} has changed. This may indicate a man-in-the-middle attack, or the server was reinstalled.",
+  "dialog.hostkey.stored": "Stored:   {0}",
+  "dialog.hostkey.received": "Received: {0}",
+  "dialog.hostkey.continue": "Continue Anyway",
+
   "auth.password": "Password",
   "auth.private_key": "Private Key",
 

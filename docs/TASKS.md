@@ -142,10 +142,13 @@ DONE
 - 设置窗口：File → Settings，TabPane General / Terminal / SSH
   - General：语言（已从 View 菜单归位）、主题、自动保存（实时生效）
   - Terminal：字体、字号（**立即应用到所有已打开终端**，JediTerm reinitFontAndResize）；光标样式预留（置灰）
-  - SSH：KeepAlive、Timeout（对新连接生效）；主机密钥校验预留（置灰）
+  - SSH：KeepAlive、Timeout（对新连接生效）；主机密钥校验（已做实，默认开启）
 - 终端类型（PTY type）：新建/编辑连接可选 xterm-256color / xterm / vt100 / vt220 /
   ansi / linux / screen，作为每连接选项落库；connections 表加 terminal_type 列
   （schema v2，含老库 ALTER 迁移）
 - 键盘菜单：菜单栏「键盘」一键向活动终端发送控制序列——控制键（Ctrl+C/D/Z/L/A/E/
   U/K/W/R/G/\）、特殊键（Tab/Esc/Enter/Backspace/Del/Ins/Home/End/PgUp/PgDn）、
   方向键、功能键 F1–F12
+- 主机密钥校验（known_hosts，TOFU）：首次连接记录指纹；再次连接指纹不一致时弹
+  红色警告（列已记录/本次指纹），「仍然继续」按钮倒计时 5 秒后才可点，可取消或继续
+  （继续则更新记录）；设置项「主机密钥校验」开关控制，默认开启

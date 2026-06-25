@@ -13,6 +13,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,5 +94,36 @@ class MinaSshServiceTest {
             assertTrue(out.indexOf("MARKER_42") >= 0, "shell output should contain the echoed marker");
             shell.close();
         }
+    }
+
+    @Test
+    void knownHostsTofuRecordsThenMatchesWithoutPrompt() {
+        java.util.Map<String, String> store = new java.util.HashMap<>();
+        boolean[] prompted = {false};
+        KnownHostsVerifier verifier = new KnownHostsVerifier(
+                new HostKeyStore() {
+                    public java.util.Optional<String> find(String host, int port) {
+                        return java.util.Optional.ofNullable(store.get(host + ":" + port));
+                    }
+
+                    public void save(String host, int port, String fp) {
+                        store.put(host + ":" + port, fp);
+                    }
+                },
+                (h, p, s, r) -> {
+                    prompted[0] = true;
+                    return false;
+                },
+                () -> true);
+        try (MinaSshService verified = new MinaSshService(verifier)) {
+            try (SshSession s1 = verified.connect(passwordConfig(EmbeddedSshServer.PASSWORD))) {
+                assertTrue(s1.isOpen());
+            }
+            try (SshSession s2 = verified.connect(passwordConfig(EmbeddedSshServer.PASSWORD))) {
+                assertTrue(s2.isOpen());
+            }
+        }
+        assertEquals(1, store.size());
+        assertFalse(prompted[0]);
     }
 }
