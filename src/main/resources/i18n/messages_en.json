@@ -1,0 +1,44 @@
+{
+  "app.title": "JFX SSH Client",
+
+  "menu.file": "File",
+  "menu.file.new_connection": "New Connection",
+  "menu.file.import": "Import",
+  "menu.file.export": "Export",
+  "menu.file.settings": "Settings",
+  "menu.file.exit": "Exit",
+
+  "menu.connection": "Connection",
+  "menu.connection.connect": "Connect",
+  "menu.connection.disconnect": "Disconnect",
+  "menu.connection.reconnect": "Reconnect",
+  "menu.connection.close_session": "Close Session",
+
+  "menu.tools": "Tools",
+  "menu.tools.sftp": "SFTP",
+  "menu.tools.port_forward": "Port Forward",
+  "menu.tools.plugin_manager": "Plugin Manager",
+
+  "menu.view": "View",
+  "menu.view.light_theme": "Light Theme",
+  "menu.view.dark_theme": "Dark Theme",
+  "menu.view.language": "Language",
+  "menu.view.reset_layout": "Reset Layout",
+
+  "menu.help": "Help",
+  "menu.help.about": "About",
+  "menu.help.documentation": "Documentation",
+
+  "lang.en": "English",
+  "lang.zh_CN": "简体中文",
+
+  "tree.connections": "Connections",
+  "tree.group.production": "Production",
+  "tree.group.testing": "Testing",
+  "tree.group.local": "Local",
+
+  "tab.welcome": "Welcome",
+  "tab.no_session": "No active session",
+
+  "status.ready": "Ready"
+}

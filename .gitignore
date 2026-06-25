@@ -1,0 +1,29 @@
+# Build output
+target/
+*.class
+
+# Maven
+dependency-reduced-pom.xml
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings (machine-local)
+.claude/settings.local.json
+
+# Logs / runtime
+*.log

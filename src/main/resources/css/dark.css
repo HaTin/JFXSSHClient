@@ -1,0 +1,34 @@
+/* JFX SSH Client - Dark Theme
+   见 docs/UI_DESIGN.md：专业、简洁，无渐变、无大圆角、无花哨动画。 */
+
+.root {
+    -fx-base: #2b2b2b;
+    -fx-background: #1e1e1e;
+    -fx-control-inner-background: #252526;
+    -fx-text-base-color: #e0e0e0;
+    -fx-accent: #3b82f6;
+    -fx-focus-color: #3b82f6;
+    -fx-font-size: 13px;
+}
+
+.menu-bar {
+    -fx-background-color: #333333;
+}
+
+.tree-view {
+    -fx-background-color: #252526;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #333333;
+}
+
+.status-bar {
+    -fx-background-color: #333333;
+    -fx-border-color: #444444;
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-bar .label {
+    -fx-text-fill: #cccccc;
+}

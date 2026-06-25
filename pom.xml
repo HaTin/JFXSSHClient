@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.xxx</groupId>
+    <artifactId>jfxssh</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>JFX SSH Client</name>
+    <description>Cross-platform SSH client built with JavaFX</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <slf4j.version>2.0.13</slf4j.version>
+        <logback.version>1.5.6</logback.version>
+        <sqlite.version>3.46.0.0</sqlite.version>
+        <jackson.version>2.17.2</jackson.version>
+
+        <main.class>com.xxx.jfxssh.launcher.Main</main.class>
+    </properties>
+
+    <dependencies>
+        <!--
+            JavaFX 由 JDK 提供（Zulu FX / Liberica Full 等自带 JavaFX 的 JDK）。
+            原因：Maven Central 未发布 linux-aarch64 分类器的 openjfx 工件，
+            ARM64 Linux 通常使用自带 JavaFX 的 JDK。
+            编译 / 运行通过 add-modules javafx.controls 使用 JDK 内置模块。
+            如使用不含 JavaFX 的 JDK，请改为引入 org.openjfx:javafx-controls 依赖。
+        -->
+
+        <!-- Logging: SLF4J + Logback (CODING_STANDARDS 要求使用 SLF4J) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+        <!-- SQLite -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>${sqlite.version}</version>
+        </dependency>
+
+        <!-- JSON: 用于 i18n 语言文件解析（见 I18N.md） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+            以下依赖将在对应里程碑引入，此阶段不实现：
+            - Apache Mina SSHD  (SSH 模块)
+            - JediTerm          (Terminal 模块)
+        -->
+    </dependencies>
+
+    <build>
+        <finalName>jfxssh</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <!-- 使用 JDK 内置 JavaFX 模块 -->
+                    <compilerArgs>
+                        <arg>--add-modules</arg>
+                        <arg>javafx.controls</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- 运行：mvn exec:exec -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <executable>${java.home}/bin/java</executable>
+                    <arguments>
+                        <argument>--add-modules</argument>
+                        <argument>javafx.controls</argument>
+                        <argument>-classpath</argument>
+                        <classpath/>
+                        <argument>${main.class}</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

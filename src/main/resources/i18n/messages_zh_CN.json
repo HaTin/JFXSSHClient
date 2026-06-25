@@ -1,0 +1,44 @@
+{
+  "app.title": "JFX SSH 客户端",
+
+  "menu.file": "文件",
+  "menu.file.new_connection": "新建连接",
+  "menu.file.import": "导入",
+  "menu.file.export": "导出",
+  "menu.file.settings": "设置",
+  "menu.file.exit": "退出",
+
+  "menu.connection": "连接",
+  "menu.connection.connect": "连接",
+  "menu.connection.disconnect": "断开",
+  "menu.connection.reconnect": "重连",
+  "menu.connection.close_session": "关闭会话",
+
+  "menu.tools": "工具",
+  "menu.tools.sftp": "SFTP",
+  "menu.tools.port_forward": "端口转发",
+  "menu.tools.plugin_manager": "插件管理",
+
+  "menu.view": "视图",
+  "menu.view.light_theme": "浅色主题",
+  "menu.view.dark_theme": "深色主题",
+  "menu.view.language": "语言",
+  "menu.view.reset_layout": "重置布局",
+
+  "menu.help": "帮助",
+  "menu.help.about": "关于",
+  "menu.help.documentation": "文档",
+
+  "lang.en": "English",
+  "lang.zh_CN": "简体中文",
+
+  "tree.connections": "连接",
+  "tree.group.production": "生产环境",
+  "tree.group.testing": "测试环境",
+  "tree.group.local": "本地",
+
+  "tab.welcome": "欢迎",
+  "tab.no_session": "暂无活动会话",
+
+  "status.ready": "就绪"
+}
