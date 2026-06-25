@@ -12,15 +12,21 @@ import com.xxx.jfxssh.terminal.SshTtyConnector;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingNode;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,11 +34,12 @@ import java.util.Map;
 /**
  * 终端标签页区域（见 docs/UI_DESIGN.md）。
  *
- * <p>一个 Tab 对应一个 SSH 会话。状态点：◐ 连接中、● 已连接、○ 断开。</p>
+ * <p>一个标签对应一个 SSH 会话。状态点：◐ 连接中、● 已连接、○ 断开。</p>
  *
- * <p><b>单 SwingNode 设计：</b>JavaFX 同一场景内存在多个 SwingNode 会导致键盘
- * 焦点整体失效，因此全程只用一个 SwingNode，内部用 Swing CardLayout 承载各终端
- * 控件；切换标签时把唯一的 SwingNode 移入当前标签并切到对应卡片。</p>
+ * <p><b>单 SwingNode + 固定布局：</b>JavaFX 多个 SwingNode 会让键盘焦点整体失效，
+ * 而把同一个 SwingNode 在标签间反复换父节点又会白屏/镜像。因此这里用一个永不
+ * 移动的 SwingNode 承载 Swing CardLayout：每个终端是一张卡片，顶部自定义标签条
+ * 驱动 CardLayout 切卡。</p>
  */
 public final class TerminalTabsPane {
 
@@ -40,17 +47,23 @@ public final class TerminalTabsPane {
 
     private static final int COLUMNS = 80;
     private static final int ROWS = 24;
+    private static final String WELCOME = "welcome";
     private static final String DOT_CONNECTING = "◐";
     private static final String DOT_CONNECTED = "●";
     private static final String DOT_DISCONNECTED = "○";
 
+    private static final String STYLE_TAB = "-fx-padding: 3 8 3 8;";
+    private static final String STYLE_TAB_SELECTED =
+            "-fx-padding: 3 8 3 8; -fx-background-color: derive(-fx-accent, 50%);";
+
     private final SshService sshService;
-    private final TabPane tabs = new TabPane();
+    private final BorderPane root = new BorderPane();
+    private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
     private final JPanel cards = new JPanel(new CardLayout());
-    private final StackPane terminalHolder = new StackPane(swingNode);
-    private final Map<Tab, Holder> holders = new HashMap<>();
+    private final Map<String, Entry> entries = new HashMap<>();
 
+    private String selectedCardId;
     private int counter;
 
     /**
@@ -58,147 +71,167 @@ public final class TerminalTabsPane {
      */
     public TerminalTabsPane(SshService sshService) {
         this.sshService = sshService;
-        tabs.setId("TerminalTabs");
-        SwingUtilities.invokeLater(() -> swingNode.setContent(cards));
-        addWelcomeTab();
-        tabs.getSelectionModel().selectedItemProperty()
-                .addListener((obs, oldTab, newTab) -> onTabSelected(oldTab, newTab));
+        root.setId("TerminalTabs");
+        tabBar.setPadding(new Insets(2));
+        tabBar.setAlignment(Pos.CENTER_LEFT);
+        root.setTop(tabBar);
+        root.setCenter(new StackPane(swingNode));
+
+        SwingUtilities.invokeLater(() -> {
+            JPanel welcome = new JPanel(new BorderLayout());
+            welcome.add(new JLabel(I18n.t("tab.no_session"), SwingConstants.CENTER), BorderLayout.CENTER);
+            cards.add(welcome, WELCOME);
+            swingNode.setContent(cards);
+        });
     }
 
     /**
-     * @return 标签页节点
+     * @return 终端区域节点
      */
-    public TabPane getView() {
-        return tabs;
+    public BorderPane getView() {
+        return root;
     }
 
     /**
-     * 为连接打开终端标签页。
+     * 为连接打开终端标签。
      *
      * @param connection 连接
      * @param config     SSH 连接配置
      */
     public void openTerminal(Connection connection, SshConnectionConfig config) {
         String cardId = "term-" + (counter++);
-        Tab tab = new Tab();
-        tab.setUserData(cardId);
-        tab.setOnClosed(e -> closeTab(tab));
-        holders.put(tab, new Holder(cardId));
-        tabs.getTabs().add(tab);
-        tabs.getSelectionModel().select(tab);
-        connectIntoTab(tab, connection, config);
-    }
-
-    /** 移动唯一的 SwingNode 到选中的终端标签，并切到其卡片。 */
-    private void onTabSelected(Tab oldTab, Tab newTab) {
-        if (oldTab != null && holders.containsKey(oldTab) && oldTab.getContent() == terminalHolder) {
-            oldTab.setContent(null);
-        }
-        if (newTab != null && holders.containsKey(newTab)) {
-            newTab.setContent(terminalHolder);
-            focus(holders.get(newTab));
-        }
-    }
-
-    /** 在指定标签内（重新）建立连接并挂载终端。首连与重连复用此逻辑。 */
-    private void connectIntoTab(Tab tab, Connection connection, SshConnectionConfig config) {
-        Holder holder = holders.get(tab);
-        if (holder == null) {
-            return;
-        }
         String name = displayName(connection);
-        tab.setText(tabText(DOT_CONNECTING, name));
-        removeWidget(holder);
 
-        Thread worker = new Thread(() -> {
-            try {
-                SshSession session = sshService.connect(config);
-                SshShell shell = session.openShell(COLUMNS, ROWS);
-                SshTtyConnector connector = new SshTtyConnector(shell, name,
-                        () -> Platform.runLater(() -> connectIntoTab(tab, connection, config)));
-                SwingUtilities.invokeLater(() -> {
-                    JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
-                    widget.setTtyConnector(connector);
-                    widget.start();
-                    cards.add(widget, holder.cardId);
-                    holder.widget = widget;
-                    holder.connector = connector;
-                    holder.session = session;
-                    showCard(holder.cardId);
-                    widget.getTerminalPanel().requestFocusInWindow();
-                });
-                Platform.runLater(() -> {
-                    tab.setText(tabText(DOT_CONNECTED, name));
-                    if (tabs.getSelectionModel().getSelectedItem() == tab) {
-                        swingNode.requestFocus();
-                    }
-                });
-                watchClose(tab, shell, name);
-            } catch (RuntimeException ex) {
-                log.warn("Terminal connect failed for {}: {}", name, ex.getMessage());
-                Platform.runLater(() -> {
-                    tab.setText(tabText(DOT_DISCONNECTED, name));
-                    UiDialogs.error(I18n.t("msg.connect.fail", config.getHost() + ":" + config.getPort()));
-                });
-            }
-        }, "ssh-terminal-" + name);
-        worker.setDaemon(true);
-        worker.start();
+        Entry entry = new Entry(cardId, name, connection, config);
+        entry.label = new Label(tabText(DOT_CONNECTING, name));
+        Button closeButton = new Button("✕");
+        closeButton.setStyle("-fx-padding: 0 4 0 4; -fx-background-color: transparent;");
+        closeButton.setOnAction(e -> closeCard(cardId));
+        entry.header = new HBox(4, entry.label, closeButton);
+        entry.header.setAlignment(Pos.CENTER_LEFT);
+        entry.header.setStyle(STYLE_TAB);
+        entry.header.setOnMouseClicked(e -> selectCard(cardId));
+
+        entries.put(cardId, entry);
+        tabBar.getChildren().add(entry.header);
+        selectCard(cardId);
+        connectIntoCard(cardId);
     }
 
-    private void watchClose(Tab tab, SshShell shell, String name) {
-        Thread watcher = new Thread(() -> {
-            shell.waitForClose();
-            Platform.runLater(() -> {
-                tab.setText(tabText(DOT_DISCONNECTED, name));
-                Holder holder = holders.get(tab);
-                if (holder != null && holder.widget != null) {
-                    JediTermWidget widget = holder.widget;
-                    SwingUtilities.invokeLater(() -> printHint(widget, I18n.t("terminal.disconnected_hint")));
-                }
-            });
-        }, "ssh-watch-" + name);
-        watcher.setDaemon(true);
-        watcher.start();
-    }
-
-    private void focus(Holder holder) {
+    private void selectCard(String cardId) {
+        selectedCardId = cardId;
+        for (Entry e : entries.values()) {
+            e.header.setStyle(e.cardId.equals(cardId) ? STYLE_TAB_SELECTED : STYLE_TAB);
+        }
+        Entry entry = entries.get(cardId);
         Platform.runLater(swingNode::requestFocus);
         SwingUtilities.invokeLater(() -> {
-            showCard(holder.cardId);
-            if (holder.widget != null) {
-                holder.widget.getTerminalPanel().requestFocusInWindow();
+            ((CardLayout) cards.getLayout()).show(cards, cardId);
+            cards.revalidate();
+            cards.repaint();
+            if (entry != null && entry.widget != null) {
+                entry.widget.getTerminalPanel().requestFocusInWindow();
             }
         });
     }
 
-    private void showCard(String cardId) {
-        ((CardLayout) cards.getLayout()).show(cards, cardId);
+    private void connectIntoCard(String cardId) {
+        Entry entry = entries.get(cardId);
+        if (entry == null) {
+            return;
+        }
+        entry.label.setText(tabText(DOT_CONNECTING, entry.name));
+        releaseSession(entry);
+
+        Thread worker = new Thread(() -> {
+            try {
+                SshSession session = sshService.connect(entry.config);
+                SshShell shell = session.openShell(COLUMNS, ROWS);
+                SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
+                        () -> Platform.runLater(() -> connectIntoCard(cardId)));
+                SwingUtilities.invokeLater(() -> {
+                    JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new DefaultSettingsProvider());
+                    widget.setTtyConnector(connector);
+                    widget.start();
+                    cards.add(widget, cardId);
+                    entry.widget = widget;
+                    entry.connector = connector;
+                    entry.session = session;
+                    if (cardId.equals(selectedCardId)) {
+                        ((CardLayout) cards.getLayout()).show(cards, cardId);
+                        widget.getTerminalPanel().requestFocusInWindow();
+                    }
+                    cards.revalidate();
+                    cards.repaint();
+                });
+                Platform.runLater(() -> {
+                    entry.label.setText(tabText(DOT_CONNECTED, entry.name));
+                    if (cardId.equals(selectedCardId)) {
+                        swingNode.requestFocus();
+                    }
+                });
+                watchClose(cardId, shell);
+            } catch (RuntimeException ex) {
+                log.warn("Terminal connect failed for {}: {}", entry.name, ex.getMessage());
+                Platform.runLater(() -> {
+                    entry.label.setText(tabText(DOT_DISCONNECTED, entry.name));
+                    UiDialogs.error(I18n.t("msg.connect.fail",
+                            entry.config.getHost() + ":" + entry.config.getPort()));
+                });
+            }
+        }, "ssh-terminal-" + entry.name);
+        worker.setDaemon(true);
+        worker.start();
     }
 
-    private void printHint(JediTermWidget widget, String text) {
-        widget.getTerminal().carriageReturn();
-        widget.getTerminal().newLine();
-        widget.getTerminal().writeCharacters(text);
-        widget.getTerminal().carriageReturn();
-        widget.getTerminal().newLine();
+    private void watchClose(String cardId, SshShell shell) {
+        Thread watcher = new Thread(() -> {
+            shell.waitForClose();
+            Platform.runLater(() -> {
+                Entry entry = entries.get(cardId);
+                if (entry == null) {
+                    return;
+                }
+                entry.label.setText(tabText(DOT_DISCONNECTED, entry.name));
+                JediTermWidget widget = entry.widget;
+                if (widget != null) {
+                    SwingUtilities.invokeLater(() -> printHint(widget, I18n.t("terminal.disconnected_hint")));
+                }
+            });
+        }, "ssh-watch-" + cardId);
+        watcher.setDaemon(true);
+        watcher.start();
     }
 
-    private void closeTab(Tab tab) {
-        Holder holder = holders.remove(tab);
-        if (holder != null) {
-            removeWidget(holder);
+    private void closeCard(String cardId) {
+        Entry entry = entries.remove(cardId);
+        if (entry == null) {
+            return;
+        }
+        tabBar.getChildren().remove(entry.header);
+        releaseSession(entry);
+        // 选中其他标签，否则回到欢迎卡
+        String next = entries.keySet().stream().findFirst().orElse(WELCOME);
+        if (WELCOME.equals(next)) {
+            selectedCardId = null;
+            SwingUtilities.invokeLater(() -> {
+                ((CardLayout) cards.getLayout()).show(cards, WELCOME);
+                cards.revalidate();
+                cards.repaint();
+            });
+        } else {
+            selectCard(next);
         }
     }
 
-    /** 释放 holder 当前的会话与控件（重连或关闭时调用）。 */
-    private void removeWidget(Holder holder) {
-        JediTermWidget oldWidget = holder.widget;
-        SshTtyConnector oldConnector = holder.connector;
-        SshSession oldSession = holder.session;
-        holder.widget = null;
-        holder.connector = null;
-        holder.session = null;
+    /** 释放会话与控件（重连或关闭时调用），不移除标签头。 */
+    private void releaseSession(Entry entry) {
+        SshTtyConnector oldConnector = entry.connector;
+        SshSession oldSession = entry.session;
+        JediTermWidget oldWidget = entry.widget;
+        entry.connector = null;
+        entry.session = null;
+        entry.widget = null;
         if (oldConnector != null) {
             oldConnector.close();
         }
@@ -213,6 +246,14 @@ public final class TerminalTabsPane {
         }
     }
 
+    private void printHint(JediTermWidget widget, String text) {
+        widget.getTerminal().carriageReturn();
+        widget.getTerminal().newLine();
+        widget.getTerminal().writeCharacters(text);
+        widget.getTerminal().carriageReturn();
+        widget.getTerminal().newLine();
+    }
+
     private String tabText(String dot, String name) {
         return dot + " " + name;
     }
@@ -221,26 +262,23 @@ public final class TerminalTabsPane {
         return c.getName() != null && !c.getName().isBlank() ? c.getName() : c.getHost();
     }
 
-    private void addWelcomeTab() {
-        Label welcome = new Label();
-        welcome.textProperty().bind(I18n.tp("tab.no_session"));
-
-        Tab welcomeTab = new Tab();
-        welcomeTab.textProperty().bind(I18n.tp("tab.welcome"));
-        welcomeTab.setContent(new StackPane(welcome));
-        welcomeTab.setClosable(false);
-        tabs.getTabs().add(welcomeTab);
-    }
-
-    /** 每个终端标签的会话与控件。 */
-    private static final class Holder {
+    /** 每个终端标签的状态。widget/connector/session 在 EDT 创建、可能被 FX 读，故 volatile。 */
+    private static final class Entry {
         private final String cardId;
-        private JediTermWidget widget;
-        private SshTtyConnector connector;
-        private SshSession session;
+        private final String name;
+        private final Connection connection;
+        private final SshConnectionConfig config;
+        private Label label;
+        private HBox header;
+        private volatile JediTermWidget widget;
+        private volatile SshTtyConnector connector;
+        private volatile SshSession session;
 
-        Holder(String cardId) {
+        Entry(String cardId, String name, Connection connection, SshConnectionConfig config) {
             this.cardId = cardId;
+            this.name = name;
+            this.connection = connection;
+            this.config = config;
         }
     }
 }
