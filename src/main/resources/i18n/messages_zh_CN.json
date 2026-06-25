@@ -86,6 +86,19 @@
   "dialog.auth.choose_prompt": "请选择连接认证方式：",
   "dialog.key.passphrase_prompt": "私钥口令（可留空）：",
 
+  "settings.tab.general": "常规",
+  "settings.tab.terminal": "终端",
+  "settings.tab.ssh": "SSH",
+  "settings.general.language": "语言",
+  "settings.general.theme": "主题",
+  "settings.general.auto_save": "自动保存",
+  "settings.terminal.font": "字体",
+  "settings.terminal.font_size": "字号",
+  "settings.terminal.cursor": "光标样式",
+  "settings.ssh.keepalive": "保活（秒）",
+  "settings.ssh.timeout": "超时（秒）",
+  "settings.ssh.host_key_verify": "主机密钥校验",
+
   "auth.password": "密码",
   "auth.private_key": "公钥",
 

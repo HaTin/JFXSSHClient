@@ -31,6 +31,39 @@ public final class AppConfig {
     /** 语言配置项（值为语言代码，如 en / zh_CN）。 */
     public static final String KEY_LANGUAGE = "language";
 
+    /** 自动保存。 */
+    public static final String KEY_AUTOSAVE = "general.autosave";
+
+    /** 终端字体族。 */
+    public static final String KEY_TERMINAL_FONT = "terminal.font";
+
+    /** 终端字体默认值（AWT 逻辑等宽字体，始终可用）。 */
+    public static final String DEFAULT_TERMINAL_FONT = "Monospaced";
+
+    /** 终端字号。 */
+    public static final String KEY_TERMINAL_FONT_SIZE = "terminal.font_size";
+
+    /** 终端字号默认值。 */
+    public static final int DEFAULT_TERMINAL_FONT_SIZE = 14;
+
+    /** 终端光标样式（预留）。 */
+    public static final String KEY_TERMINAL_CURSOR = "terminal.cursor";
+
+    /** SSH 保活心跳秒数（0 表示关闭）。 */
+    public static final String KEY_SSH_KEEPALIVE = "ssh.keepalive";
+
+    /** SSH 保活默认秒数。 */
+    public static final int DEFAULT_SSH_KEEPALIVE = 30;
+
+    /** SSH 超时秒数。 */
+    public static final String KEY_SSH_TIMEOUT = "ssh.timeout";
+
+    /** SSH 超时默认秒数。 */
+    public static final int DEFAULT_SSH_TIMEOUT = 10;
+
+    /** SSH 主机密钥校验（预留，当前接受全部）。 */
+    public static final String KEY_SSH_HOSTKEY_VERIFY = "ssh.hostkey_verify";
+
     private final AppPaths paths;
     private final Properties properties = new Properties();
 
@@ -91,5 +124,31 @@ public final class AppConfig {
      */
     public void set(String key, String value) {
         properties.setProperty(key, value);
+    }
+
+    /**
+     * 读取整数配置项。
+     *
+     * @param key          键
+     * @param defaultValue 缺省值
+     * @return 整数值或缺省值
+     */
+    public int getInt(String key, int defaultValue) {
+        try {
+            return Integer.parseInt(get(key, Integer.toString(defaultValue)));
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * 读取布尔配置项。
+     *
+     * @param key          键
+     * @param defaultValue 缺省值
+     * @return 布尔值或缺省值
+     */
+    public boolean getBoolean(String key, boolean defaultValue) {
+        return Boolean.parseBoolean(get(key, Boolean.toString(defaultValue)));
     }
 }

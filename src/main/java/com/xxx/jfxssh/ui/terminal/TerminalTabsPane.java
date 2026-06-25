@@ -1,6 +1,7 @@
 package com.xxx.jfxssh.ui.terminal;
 
 import com.jediterm.terminal.ui.JediTermWidget;
+import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
 import com.xxx.jfxssh.ssh.SshService;
@@ -58,6 +59,7 @@ public final class TerminalTabsPane {
             "-fx-padding: 3 8 3 8; -fx-background-color: derive(-fx-accent, 50%);";
 
     private final SshService sshService;
+    private final AppConfig config;
     private final BorderPane root = new BorderPane();
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
@@ -71,9 +73,11 @@ public final class TerminalTabsPane {
 
     /**
      * @param sshService SSH 服务
+     * @param config     应用配置（终端字体等）
      */
-    public TerminalTabsPane(SshService sshService) {
+    public TerminalTabsPane(SshService sshService, AppConfig config) {
         this.sshService = sshService;
+        this.config = config;
         root.setId("TerminalTabs");
         tabBar.setPadding(new Insets(2));
         tabBar.setAlignment(Pos.CENTER_LEFT);
@@ -167,7 +171,10 @@ public final class TerminalTabsPane {
         SshTtyConnector connector = new SshTtyConnector(shell, entry.name,
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
-            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new ThemedTerminalSettings(dark));
+            JediTermWidget widget = new JediTermWidget(COLUMNS, ROWS, new ThemedTerminalSettings(
+                    dark,
+                    config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT),
+                    config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE)));
             // 允许控件收缩到 0，避免分隔条拖动时的留白挤压
             widget.setMinimumSize(new Dimension(0, 0));
             widget.getTerminalPanel().setMinimumSize(new Dimension(0, 0));

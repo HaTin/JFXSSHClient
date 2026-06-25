@@ -134,3 +134,12 @@ DONE
 
 - 单元测试：JUnit 5 + surefire，31 个用例（cipher / vault / settings / i18n /
   connection / group + 级联 / ssh 集成 / tty-connector 断开重连），mvn test 全绿
+
+---
+
+## 增强（V1.1）
+
+- 设置窗口：File → Settings，TabPane General / Terminal / SSH
+  - General：语言（已从 View 菜单归位）、主题、自动保存（实时生效）
+  - Terminal：字体、字号（对新建终端生效）；光标样式预留（置灰）
+  - SSH：KeepAlive、Timeout（对新连接生效）；主机密钥校验预留（置灰）

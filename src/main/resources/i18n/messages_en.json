@@ -86,6 +86,19 @@
   "dialog.auth.choose_prompt": "Choose how to authenticate:",
   "dialog.key.passphrase_prompt": "Private key passphrase (optional):",
 
+  "settings.tab.general": "General",
+  "settings.tab.terminal": "Terminal",
+  "settings.tab.ssh": "SSH",
+  "settings.general.language": "Language",
+  "settings.general.theme": "Theme",
+  "settings.general.auto_save": "Auto Save",
+  "settings.terminal.font": "Font",
+  "settings.terminal.font_size": "Font Size",
+  "settings.terminal.cursor": "Cursor Style",
+  "settings.ssh.keepalive": "KeepAlive (s)",
+  "settings.ssh.timeout": "Timeout (s)",
+  "settings.ssh.host_key_verify": "Host Key Verify",
+
   "auth.password": "Password",
   "auth.private_key": "Private Key",
 

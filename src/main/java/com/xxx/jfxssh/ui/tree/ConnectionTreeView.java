@@ -2,6 +2,7 @@ package com.xxx.jfxssh.ui.tree;
 
 import com.xxx.jfxssh.common.AuthType;
 import com.xxx.jfxssh.common.Constants;
+import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.CredentialVault;
@@ -23,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -31,7 +33,7 @@ import java.util.Optional;
  * <p>从 {@link GroupService} / {@link ConnectionService} 加载真实数据，按分组
  * 嵌套展示连接，并通过右键菜单完成分组与连接的增删改、以及打开终端
  * （委托 {@link TerminalLauncher}）。连接密码经 {@link CredentialVault} 加密保存、
- * 连接时解密。所有数据变更后重新加载树。</p>
+ * 连接时解密；SSH 保活 / 超时取自设置。所有数据变更后重新加载树。</p>
  */
 public final class ConnectionTreeView {
 
@@ -41,6 +43,7 @@ public final class ConnectionTreeView {
     private final GroupService groupService;
     private final TerminalLauncher terminalLauncher;
     private final CredentialVault vault;
+    private final AppConfig config;
     private final TreeView<TreeNodeData> tree = new TreeView<>();
 
     /**
@@ -48,15 +51,18 @@ public final class ConnectionTreeView {
      * @param groupService      分组服务
      * @param terminalLauncher  打开终端的回调
      * @param vault             凭据保险库（密码加解密）
+     * @param config            应用配置（SSH 保活 / 超时）
      */
     public ConnectionTreeView(ConnectionService connectionService,
                               GroupService groupService,
                               TerminalLauncher terminalLauncher,
-                              CredentialVault vault) {
+                              CredentialVault vault,
+                              AppConfig config) {
         this.connectionService = connectionService;
         this.groupService = groupService;
         this.terminalLauncher = terminalLauncher;
         this.vault = vault;
+        this.config = config;
 
         tree.setId("ConnectionTree");
         tree.setMinWidth(150);
@@ -211,8 +217,13 @@ public final class ConnectionTreeView {
 
     /** 构建连接配置；用户全程取消返回 null。 */
     private SshConnectionConfig buildConfig(Connection c) {
+        int keepAlive = config.getInt(AppConfig.KEY_SSH_KEEPALIVE, AppConfig.DEFAULT_SSH_KEEPALIVE);
+        int timeout = config.getInt(AppConfig.KEY_SSH_TIMEOUT, AppConfig.DEFAULT_SSH_TIMEOUT);
         SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
-                .port(c.getPort());
+                .port(c.getPort())
+                .keepAliveInterval(Duration.ofSeconds(keepAlive))
+                .connectTimeout(Duration.ofSeconds(timeout))
+                .authTimeout(Duration.ofSeconds(timeout));
 
         if (c.getAuthType() == AuthType.PRIVATE_KEY) {
             return builder.authType(AuthType.PRIVATE_KEY)
