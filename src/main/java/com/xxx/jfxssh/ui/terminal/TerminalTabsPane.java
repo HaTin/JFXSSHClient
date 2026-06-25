@@ -110,6 +110,28 @@ public final class TerminalTabsPane {
     }
 
     /**
+     * 向当前活动终端发送原始字节（如控制序列），并把焦点交回终端。
+     *
+     * @param data 要发送的字节
+     */
+    public void sendToActiveTerminal(byte[] data) {
+        Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
+        if (entry == null || entry.connector == null) {
+            return;
+        }
+        try {
+            entry.connector.write(data);
+        } catch (java.io.IOException e) {
+            log.warn("Failed to send keys to terminal: {}", e.getMessage());
+        }
+        Platform.runLater(swingNode::requestFocus);
+        JediTermWidget widget = entry.widget;
+        if (widget != null) {
+            SwingUtilities.invokeLater(() -> widget.getTerminalPanel().requestFocusInWindow());
+        }
+    }
+
+    /**
      * 应用字体 / 字号：立即作用于所有已打开终端（更新共享字体模型并重排），
      * 新建终端亦使用新字体。
      *

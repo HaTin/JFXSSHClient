@@ -146,3 +146,6 @@ DONE
 - 终端类型（PTY type）：新建/编辑连接可选 xterm-256color / xterm / vt100 / vt220 /
   ansi / linux / screen，作为每连接选项落库；connections 表加 terminal_type 列
   （schema v2，含老库 ALTER 迁移）
+- 键盘菜单：菜单栏「键盘」一键向活动终端发送控制序列——控制键（Ctrl+C/D/Z/L/A/E/
+  U/K/W/R/G/\）、特殊键（Tab/Esc/Enter/Backspace/Del/Ins/Home/End/PgUp/PgDn）、
+  方向键、功能键 F1–F12

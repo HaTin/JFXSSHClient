@@ -25,6 +25,12 @@
   "menu.view.language": "语言",
   "menu.view.reset_layout": "重置布局",
 
+  "menu.keyboard": "键盘",
+  "menu.keyboard.control": "控制键",
+  "menu.keyboard.special": "特殊键",
+  "menu.keyboard.arrows": "方向键",
+  "menu.keyboard.function": "功能键 (F1-F12)",
+
   "menu.help": "帮助",
   "menu.help.about": "关于",
   "menu.help.documentation": "文档",

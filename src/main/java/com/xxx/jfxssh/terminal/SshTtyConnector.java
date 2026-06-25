@@ -47,7 +47,7 @@ public final class SshTtyConnector implements TtyConnector {
     }
 
     @Override
-    public void write(byte[] bytes) throws IOException {
+    public synchronized void write(byte[] bytes) throws IOException {
         if (!shell.isOpen()) {
             maybeReconnect(bytes);
             return;

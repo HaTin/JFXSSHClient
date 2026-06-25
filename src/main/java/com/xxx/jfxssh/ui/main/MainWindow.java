@@ -137,7 +137,52 @@ public final class MainWindow {
         Menu help = menu("menu.help");
         help.getItems().addAll(item("menu.help.about"), item("menu.help.documentation"));
 
-        return new MenuBar(file, connection, tools, view, help);
+        return new MenuBar(file, connection, tools, buildKeyboardMenu(), view, help);
+    }
+
+    /** 键盘菜单：点击向当前活动终端发送对应控制序列。 */
+    private Menu buildKeyboardMenu() {
+        Menu control = menu("menu.keyboard.control");
+        control.getItems().addAll(
+                keyItem("Ctrl+C", 3), keyItem("Ctrl+D", 4), keyItem("Ctrl+Z", 26),
+                keyItem("Ctrl+L", 12), keyItem("Ctrl+A", 1), keyItem("Ctrl+E", 5),
+                keyItem("Ctrl+U", 21), keyItem("Ctrl+K", 11), keyItem("Ctrl+W", 23),
+                keyItem("Ctrl+R", 18), keyItem("Ctrl+G", 7), keyItem("Ctrl+\\", 28));
+
+        Menu special = menu("menu.keyboard.special");
+        special.getItems().addAll(
+                keyItem("Tab", 9), keyItem("Esc", 27), keyItem("Enter", 13), keyItem("Backspace", 127),
+                keyItem("Delete", 27, 91, 51, 126), keyItem("Insert", 27, 91, 50, 126),
+                keyItem("Home", 27, 91, 72), keyItem("End", 27, 91, 70),
+                keyItem("PageUp", 27, 91, 53, 126), keyItem("PageDown", 27, 91, 54, 126));
+
+        Menu arrows = menu("menu.keyboard.arrows");
+        arrows.getItems().addAll(
+                keyItem("Up", 27, 91, 65), keyItem("Down", 27, 91, 66),
+                keyItem("Right", 27, 91, 67), keyItem("Left", 27, 91, 68));
+
+        Menu function = menu("menu.keyboard.function");
+        function.getItems().addAll(
+                keyItem("F1", 27, 79, 80), keyItem("F2", 27, 79, 81),
+                keyItem("F3", 27, 79, 82), keyItem("F4", 27, 79, 83),
+                keyItem("F5", 27, 91, 49, 53, 126), keyItem("F6", 27, 91, 49, 55, 126),
+                keyItem("F7", 27, 91, 49, 56, 126), keyItem("F8", 27, 91, 49, 57, 126),
+                keyItem("F9", 27, 91, 50, 48, 126), keyItem("F10", 27, 91, 50, 49, 126),
+                keyItem("F11", 27, 91, 50, 51, 126), keyItem("F12", 27, 91, 50, 52, 126));
+
+        Menu keyboard = menu("menu.keyboard");
+        keyboard.getItems().addAll(control, special, arrows, function);
+        return keyboard;
+    }
+
+    private MenuItem keyItem(String label, int... codes) {
+        byte[] data = new byte[codes.length];
+        for (int i = 0; i < codes.length; i++) {
+            data[i] = (byte) codes[i];
+        }
+        MenuItem mi = new MenuItem(label);
+        mi.setOnAction(e -> terminalTabs.sendToActiveTerminal(data));
+        return mi;
     }
 
     private MenuItem exitItem() {

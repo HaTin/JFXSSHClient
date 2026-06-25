@@ -25,6 +25,12 @@
   "menu.view.language": "Language",
   "menu.view.reset_layout": "Reset Layout",
 
+  "menu.keyboard": "Keyboard",
+  "menu.keyboard.control": "Control",
+  "menu.keyboard.special": "Special",
+  "menu.keyboard.arrows": "Arrows",
+  "menu.keyboard.function": "Function (F1-F12)",
+
   "menu.help": "Help",
   "menu.help.about": "About",
   "menu.help.documentation": "Documentation",
