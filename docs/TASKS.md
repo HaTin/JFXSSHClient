@@ -84,7 +84,7 @@ TODO
 
 状态：
 
-TODO
+DONE（ThemeManager 实时切换 + 持久化，View 菜单已接）
 
 ---
 
@@ -123,4 +123,5 @@ DONE
 - 任务2：连接管理（Service / Repository / 实体）
 - 任务2.1：分组管理后端（Group Service / Repository / 实体）
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
+- 任务6：主题切换（Light / Dark 实时）
 - 任务8：多语言（i18n）
