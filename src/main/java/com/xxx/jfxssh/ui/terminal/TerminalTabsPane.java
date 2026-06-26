@@ -19,9 +19,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +38,7 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -91,6 +97,11 @@ public final class TerminalTabsPane {
         // 允许收缩到任意宽度，避免 SwingNode 最小尺寸导致拖动分隔条时被挤压留白
         StackPane center = new StackPane(swingNode);
         center.setMinSize(0, 0);
+        // 底部输入框（JavaFX 控件，输入法正常，支持中文）：浮在终端底部，
+        // 内容超过一行向上展开，不改变终端（SwingNode）大小
+        TextArea inputBar = buildInputBar();
+        StackPane.setAlignment(inputBar, Pos.BOTTOM_CENTER);
+        center.getChildren().add(inputBar);
         root.setCenter(center);
         root.setMinWidth(0);
 
@@ -100,6 +111,46 @@ public final class TerminalTabsPane {
             welcomePanel = welcome;
             swingNode.setContent(welcome);
         });
+    }
+
+    /** 构建底部中文输入框：回车发送到活动终端，内容超一行自动向上展开（最多 6 行）。 */
+    private TextArea buildInputBar() {
+        TextArea input = new TextArea();
+        input.setId("TerminalInput");
+        input.setWrapText(true);
+        input.setPrefRowCount(1);
+        input.setMaxHeight(Region.USE_PREF_SIZE);
+        input.promptTextProperty().bind(I18n.tp("terminal.input.prompt"));
+        input.setStyle("-fx-border-color: -fx-accent; -fx-border-width: 1 0 0 0;");
+
+        Text helper = new Text("X");
+        helper.fontProperty().bind(input.fontProperty());
+        Runnable autosize = () -> {
+            double width = input.getWidth() - 16;
+            if (width <= 0) {
+                return;
+            }
+            helper.setWrappingWidth(0);
+            helper.setText("X");
+            double oneLine = helper.getLayoutBounds().getHeight();
+            helper.setWrappingWidth(width);
+            helper.setText(input.getText().isEmpty() ? "X" : input.getText());
+            double contentHeight = helper.getLayoutBounds().getHeight();
+            input.setPrefHeight(Math.min(contentHeight, oneLine * 6) + 14);
+        };
+        input.textProperty().addListener((o, a, b) -> autosize.run());
+        input.widthProperty().addListener((o, a, b) -> autosize.run());
+        input.fontProperty().addListener((o, a, b) -> autosize.run());
+
+        input.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ENTER && !e.isShiftDown()) {
+                String text = input.getText();
+                writeToActiveTerminal((text + "\r").getBytes(StandardCharsets.UTF_8));
+                input.clear();
+                e.consume();
+            }
+        });
+        return input;
     }
 
     /**
@@ -115,19 +166,29 @@ public final class TerminalTabsPane {
      * @param data 要发送的字节
      */
     public void sendToActiveTerminal(byte[] data) {
+        if (!writeToActiveTerminal(data)) {
+            return;
+        }
+        Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
+        Platform.runLater(swingNode::requestFocus);
+        if (entry != null && entry.widget != null) {
+            JediTermWidget widget = entry.widget;
+            SwingUtilities.invokeLater(() -> widget.getTerminalPanel().requestFocusInWindow());
+        }
+    }
+
+    /** 写入当前活动终端（不改变焦点）。 */
+    private boolean writeToActiveTerminal(byte[] data) {
         Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
         if (entry == null || entry.connector == null) {
-            return;
+            return false;
         }
         try {
             entry.connector.write(data);
+            return true;
         } catch (java.io.IOException e) {
-            log.warn("Failed to send keys to terminal: {}", e.getMessage());
-        }
-        Platform.runLater(swingNode::requestFocus);
-        JediTermWidget widget = entry.widget;
-        if (widget != null) {
-            SwingUtilities.invokeLater(() -> widget.getTerminalPanel().requestFocusInWindow());
+            log.warn("Failed to send to terminal: {}", e.getMessage());
+            return false;
         }
     }
 

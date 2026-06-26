@@ -53,6 +53,7 @@
 
   "tab.welcome": "Welcome",
   "tab.no_session": "No active session",
+  "terminal.input.prompt": "Type here (supports Chinese); Enter to send, Shift+Enter for newline",
   "terminal.disconnected_hint": "[Disconnected — press Enter to reconnect]",
 
   "status.ready": "Ready",
