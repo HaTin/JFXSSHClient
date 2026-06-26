@@ -73,6 +73,13 @@ public final class MainWindow {
     }
 
     /**
+     * 应用退出时调用：关闭所有终端会话。
+     */
+    public void shutdown() {
+        terminalTabs.closeAll();
+    }
+
+    /**
      * 将主题菜单项与主题管理器绑定，并接入设置窗口（构造场景后调用）。
      *
      * @param themeManager 主题管理器

@@ -40,6 +40,7 @@ public final class JfxSshApplication extends Application {
     private static final Logger log = LoggerFactory.getLogger(JfxSshApplication.class);
 
     private MinaSshService sshService;
+    private MainWindow mainWindow;
 
     @Override
     public void start(Stage stage) {
@@ -68,7 +69,7 @@ public final class JfxSshApplication extends Application {
                 () -> config.getBoolean(AppConfig.KEY_SSH_HOSTKEY_VERIFY, AppConfig.DEFAULT_SSH_HOSTKEY_VERIFY));
         sshService = new MinaSshService(hostKeyVerifier);
 
-        MainWindow mainWindow = new MainWindow(config, connectionService, groupService, sshService, vault);
+        mainWindow = new MainWindow(config, connectionService, groupService, sshService, vault);
         Scene scene = new Scene(mainWindow.getRoot(),
                 Constants.DEFAULT_WINDOW_WIDTH, Constants.DEFAULT_WINDOW_HEIGHT);
 
@@ -85,8 +86,18 @@ public final class JfxSshApplication extends Application {
 
     @Override
     public void stop() {
-        if (sshService != null) {
-            sshService.close();
+        // 主界面关闭：关闭所有终端会话、停止 SSH 客户端，并强制退出 JVM
+        // （Mina / JediTerm 会留下非守护线程，仅靠 close 不一定能让进程结束）
+        try {
+            if (mainWindow != null) {
+                mainWindow.shutdown();
+            }
+            if (sshService != null) {
+                sshService.close();
+            }
+        } finally {
+            log.info("Shutting down, exiting JVM");
+            System.exit(0);
         }
     }
 

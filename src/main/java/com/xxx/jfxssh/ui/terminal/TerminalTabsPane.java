@@ -199,6 +199,19 @@ public final class TerminalTabsPane {
         }
     }
 
+    /** 关闭所有终端会话（应用退出时调用），发送干净的断开并释放。 */
+    public void closeAll() {
+        for (Entry entry : entries.values()) {
+            if (entry.connector != null) {
+                entry.connector.close();
+            }
+            if (entry.session != null) {
+                entry.session.close();
+            }
+        }
+        entries.clear();
+    }
+
     /** 写入当前活动终端（不改变焦点）。 */
     private boolean writeToActiveTerminal(byte[] data) {
         Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
