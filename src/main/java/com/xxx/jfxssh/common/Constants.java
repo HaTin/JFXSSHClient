@@ -13,6 +13,9 @@ public final class Constants {
     /** 应用名称。 */
     public static final String APP_NAME = "JFX SSH Client";
 
+    /** 应用版本。 */
+    public static final String APP_VERSION = "1.0.0";
+
     /** SSH 默认端口。 */
     public static final int DEFAULT_PORT = 22;
 

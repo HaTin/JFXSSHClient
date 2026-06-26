@@ -8,6 +8,7 @@ import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.dialog.SettingsDialog;
+import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import com.xxx.jfxssh.ui.status.StatusBar;
 import com.xxx.jfxssh.ui.terminal.TerminalTabsPane;
 import com.xxx.jfxssh.ui.theme.ThemeManager;
@@ -38,6 +39,7 @@ public final class MainWindow {
     private MenuItem lightThemeItem;
     private MenuItem darkThemeItem;
     private MenuItem settingsItem;
+    private SplitPane splitPane;
     private ThemeManager themeManager;
 
     /**
@@ -93,12 +95,12 @@ public final class MainWindow {
     }
 
     private SplitPane buildCenter() {
-        SplitPane split = new SplitPane(
+        splitPane = new SplitPane(
                 connectionTree.getView(),
                 terminalTabs.getView());
-        split.setDividerPositions(
+        splitPane.setDividerPositions(
                 Constants.CONNECTION_TREE_WIDTH / Constants.DEFAULT_WINDOW_WIDTH);
-        return split;
+        return splitPane;
     }
 
     private MenuBar buildMenuBar() {
@@ -116,10 +118,10 @@ public final class MainWindow {
 
         Menu connection = menu("menu.connection");
         connection.getItems().addAll(
-                item("menu.connection.connect"),
-                item("menu.connection.disconnect"),
-                item("menu.connection.reconnect"),
-                item("menu.connection.close_session"));
+                item("menu.connection.connect", connectionTree::connectSelected),
+                item("menu.connection.disconnect", terminalTabs::disconnectActive),
+                item("menu.connection.reconnect", terminalTabs::reconnectActive),
+                item("menu.connection.close_session", terminalTabs::closeActive));
 
         // 未上线功能：V1 置灰（见 UI_DESIGN.md V1 菜单可见性）
         Menu tools = menu("menu.tools");
@@ -132,10 +134,13 @@ public final class MainWindow {
         darkThemeItem = item("menu.view.dark_theme");
         Menu view = menu("menu.view");
         // 语言已归位到设置窗口（File → Settings → General）
-        view.getItems().addAll(lightThemeItem, darkThemeItem, item("menu.view.reset_layout"));
+        view.getItems().addAll(lightThemeItem, darkThemeItem,
+                item("menu.view.reset_layout", this::resetLayout));
 
         Menu help = menu("menu.help");
-        help.getItems().addAll(item("menu.help.about"), item("menu.help.documentation"));
+        help.getItems().addAll(
+                item("menu.help.about", this::showAbout),
+                item("menu.help.documentation", this::showDocumentation));
 
         return new MenuBar(file, connection, tools, buildKeyboardMenu(), view, help);
     }
@@ -201,6 +206,27 @@ public final class MainWindow {
         MenuItem mi = new MenuItem();
         mi.textProperty().bind(I18n.tp(key));
         return mi;
+    }
+
+    private MenuItem item(String key, Runnable action) {
+        MenuItem mi = item(key);
+        mi.setOnAction(e -> action.run());
+        return mi;
+    }
+
+    private void resetLayout() {
+        if (splitPane != null) {
+            splitPane.setDividerPositions(
+                    Constants.CONNECTION_TREE_WIDTH / Constants.DEFAULT_WINDOW_WIDTH);
+        }
+    }
+
+    private void showAbout() {
+        UiDialogs.info("menu.help.about", I18n.t("about.message", Constants.APP_VERSION));
+    }
+
+    private void showDocumentation() {
+        UiDialogs.info("menu.help.documentation", I18n.t("help.documentation.message"));
     }
 
     private MenuItem disabled(MenuItem item) {

@@ -88,6 +88,17 @@ public final class ConnectionTreeView {
     }
 
     /**
+     * 连接当前选中的连接节点（供 Connection → Connect 菜单调用）。
+     */
+    public void connectSelected() {
+        TreeItem<TreeNodeData> item = tree.getSelectionModel().getSelectedItem();
+        if (item != null && item.getValue() != null
+                && item.getValue().type() == TreeNodeData.Type.CONNECTION) {
+            connect(item.getValue().connection());
+        }
+    }
+
+    /**
      * 重新加载整棵树。
      */
     public void reload() {

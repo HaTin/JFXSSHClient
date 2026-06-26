@@ -155,3 +155,6 @@ DONE
 - macOS 中文输入：终端底部加 JavaFX 输入框（输入法正常，支持中文），回车发送到活动
   终端、Shift+回车换行；内容超一行向上浮层展开，不改变终端大小（规避 SwingNode 在
   macOS 上 IME 失效的问题）
+- 菜单接线：Connection 菜单（Connect 连接选中项 / Disconnect / Reconnect / Close
+  Session 作用于活动终端）；View → Reset Layout 复位分隔条；Help → About（简介 +
+  版本 + 开发者 @HaTin）/ Documentation

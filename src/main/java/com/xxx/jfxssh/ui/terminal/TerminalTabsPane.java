@@ -177,6 +177,28 @@ public final class TerminalTabsPane {
         }
     }
 
+    /** 断开当前活动终端的会话（保留标签，可按回车重连）。供 Connection → Disconnect。 */
+    public void disconnectActive() {
+        Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
+        if (entry != null && entry.session != null) {
+            entry.session.close();
+        }
+    }
+
+    /** 重连当前活动终端。供 Connection → Reconnect。 */
+    public void reconnectActive() {
+        if (selectedCardId != null && entries.containsKey(selectedCardId)) {
+            reconnect(selectedCardId);
+        }
+    }
+
+    /** 关闭当前活动终端标签。供 Connection → Close Session。 */
+    public void closeActive() {
+        if (selectedCardId != null) {
+            closeCard(selectedCardId);
+        }
+    }
+
     /** 写入当前活动终端（不改变焦点）。 */
     private boolean writeToActiveTerminal(byte[] data) {
         Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);

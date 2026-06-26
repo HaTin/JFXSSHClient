@@ -35,6 +35,9 @@
   "menu.help.about": "About",
   "menu.help.documentation": "Documentation",
 
+  "about.message": "JFX SSH Client\nA cross-platform SSH client built with JavaFX.\n\nVersion: {0}\nDeveloper: @HaTin",
+  "help.documentation.message": "Documentation lives in the project's docs/ directory (architecture, database, i18n, etc.).",
+
   "lang.en": "English",
   "lang.zh_CN": "简体中文",
 

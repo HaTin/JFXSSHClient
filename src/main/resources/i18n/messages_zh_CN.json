@@ -35,6 +35,9 @@
   "menu.help.about": "关于",
   "menu.help.documentation": "文档",
 
+  "about.message": "JFX SSH 客户端\n基于 JavaFX 的跨平台 SSH 客户端。\n\n版本：{0}\n开发者：@HaTin",
+  "help.documentation.message": "文档位于项目 docs/ 目录（架构、数据库、i18n 等）。",
+
   "lang.en": "English",
   "lang.zh_CN": "简体中文",
 
