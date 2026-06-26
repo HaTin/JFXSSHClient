@@ -15,6 +15,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -55,13 +56,15 @@ final class RemotePane {
     private final SftpSession sftp;
     private final ExecutorService executor;
     private final Consumer<String> status;
+    private final Runnable onDownload;
 
     private volatile String currentPath = "/";
 
-    RemotePane(SftpSession sftp, ExecutorService executor, Consumer<String> status) {
+    RemotePane(SftpSession sftp, ExecutorService executor, Consumer<String> status, Runnable onDownload) {
         this.sftp = sftp;
         this.executor = executor;
         this.status = status;
+        this.onDownload = onDownload;
         buildView();
         navigate(".");
     }
@@ -168,6 +171,8 @@ final class RemotePane {
     }
 
     private ContextMenu buildMenu() {
+        MenuItem download = new MenuItem(I18n.t("sftp.menu.download"));
+        download.setOnAction(e -> onDownload.run());
         MenuItem mkdir = new MenuItem(I18n.t("sftp.menu.mkdir"));
         mkdir.setOnAction(e -> mkdir());
         MenuItem rename = new MenuItem(I18n.t("sftp.menu.rename"));
@@ -176,7 +181,7 @@ final class RemotePane {
         delete.setOnAction(e -> delete());
         MenuItem refresh = new MenuItem(I18n.t("sftp.button.refresh"));
         refresh.setOnAction(e -> refresh());
-        return new ContextMenu(mkdir, rename, delete, refresh);
+        return new ContextMenu(download, new SeparatorMenuItem(), mkdir, rename, delete, refresh);
     }
 
     private void navigate(String path) {

@@ -12,6 +12,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -58,11 +59,13 @@ final class LocalPane {
     private final TableView<LocalEntry> table = new TableView<>();
     private final ObservableList<LocalEntry> rows = FXCollections.observableArrayList();
     private final Consumer<String> status;
+    private final Runnable onUpload;
 
     private Path currentDir;
 
-    LocalPane(Consumer<String> status) {
+    LocalPane(Consumer<String> status, Runnable onUpload) {
         this.status = status;
+        this.onUpload = onUpload;
         this.currentDir = Paths.get(System.getProperty("user.home"));
         buildView();
         navigate(currentDir);
@@ -165,6 +168,8 @@ final class LocalPane {
     }
 
     private ContextMenu buildMenu() {
+        MenuItem upload = new MenuItem(I18n.t("sftp.menu.upload"));
+        upload.setOnAction(e -> onUpload.run());
         MenuItem mkdir = new MenuItem(I18n.t("sftp.menu.mkdir"));
         mkdir.setOnAction(e -> mkdir());
         MenuItem rename = new MenuItem(I18n.t("sftp.menu.rename"));
@@ -173,7 +178,7 @@ final class LocalPane {
         delete.setOnAction(e -> delete());
         MenuItem refresh = new MenuItem(I18n.t("sftp.button.refresh"));
         refresh.setOnAction(e -> refresh());
-        return new ContextMenu(mkdir, rename, delete, refresh);
+        return new ContextMenu(upload, new SeparatorMenuItem(), mkdir, rename, delete, refresh);
     }
 
     private void navigate(Path dir) {

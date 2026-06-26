@@ -10,7 +10,6 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
@@ -50,8 +49,7 @@ public final class SftpBrowserWindow {
     private final RemotePane remotePane;
     private final ProgressBar progressBar = new ProgressBar(0);
     private final Label statusLabel = new Label();
-    private Button uploadButton;
-    private Button downloadButton;
+    private final AtomicBoolean transferring = new AtomicBoolean(false);
 
     /**
      * @param title   连接显示名（窗口标题）
@@ -71,8 +69,8 @@ public final class SftpBrowserWindow {
             return t;
         });
 
-        this.localPane = new LocalPane(statusLabel::setText);
-        this.remotePane = new RemotePane(sftp, executor, statusLabel::setText);
+        this.localPane = new LocalPane(statusLabel::setText, this::upload);
+        this.remotePane = new RemotePane(sftp, executor, statusLabel::setText, this::download);
 
         this.stage = new Stage();
         if (owner != null) {
@@ -113,7 +111,7 @@ public final class SftpBrowserWindow {
     }
 
     private VBox buildRoot() {
-        HBox panes = new HBox(6, localPane.getView(), buildMiddle(), remotePane.getView());
+        HBox panes = new HBox(8, localPane.getView(), remotePane.getView());
         HBox.setHgrow(localPane.getView(), Priority.ALWAYS);
         HBox.setHgrow(remotePane.getView(), Priority.ALWAYS);
         VBox.setVgrow(panes, Priority.ALWAYS);
@@ -125,26 +123,14 @@ public final class SftpBrowserWindow {
         statusBar.setPadding(new Insets(4, 8, 4, 8));
         statusBar.setStyle("-fx-border-color: -fx-accent; -fx-border-width: 1 0 0 0;");
 
-        VBox root = new VBox(panes, statusBar);
-        return root;
+        return new VBox(panes, statusBar);
     }
 
-    private VBox buildMiddle() {
-        uploadButton = new Button(I18n.t("sftp.button.upload"));
-        uploadButton.setMaxWidth(Double.MAX_VALUE);
-        uploadButton.setOnAction(e -> upload());
-        downloadButton = new Button(I18n.t("sftp.button.download"));
-        downloadButton.setMaxWidth(Double.MAX_VALUE);
-        downloadButton.setOnAction(e -> download());
-
-        VBox box = new VBox(10, uploadButton, downloadButton);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(0, 4, 0, 4));
-        return box;
-    }
-
-    /** 本地选中文件 → 远程当前目录。 */
+    /** 本地选中文件 → 远程当前目录（左栏右键「上传」）。 */
     private void upload() {
+        if (transferring.get()) {
+            return;
+        }
         LocalPane.LocalEntry entry = localPane.selected();
         if (entry == null) {
             return;
@@ -160,8 +146,11 @@ public final class SftpBrowserWindow {
                 remotePane::refresh);
     }
 
-    /** 远程选中文件 → 本地当前目录。 */
+    /** 远程选中文件 → 本地当前目录（右栏右键「下载」）。 */
     private void download() {
+        if (transferring.get()) {
+            return;
+        }
         SftpEntry entry = remotePane.selected();
         if (entry == null) {
             return;
@@ -186,7 +175,7 @@ public final class SftpBrowserWindow {
      * @param onDone     成功后在 FX 线程的刷新动作
      */
     private void transfer(boolean uploading, String name, Consumer<SftpProgress> action, Runnable onDone) {
-        setTransferring(true);
+        transferring.set(true);
         statusLabel.setText(I18n.t(uploading ? "sftp.status.uploading" : "sftp.status.downloading", name));
         progressBar.setProgress(0);
         progressBar.setVisible(true);
@@ -212,23 +201,18 @@ public final class SftpBrowserWindow {
                     progressBar.setVisible(false);
                     statusLabel.setText(I18n.t(
                             uploading ? "sftp.status.upload_done" : "sftp.status.download_done", name));
-                    setTransferring(false);
+                    transferring.set(false);
                     onDone.run();
                 });
             } catch (RuntimeException ex) {
                 log.warn("Transfer failed for {}: {}", name, ex.getMessage());
                 Platform.runLater(() -> {
                     progressBar.setVisible(false);
-                    setTransferring(false);
+                    transferring.set(false);
                     UiDialogs.error(I18n.t(
                             uploading ? "sftp.error.upload" : "sftp.error.download", name));
                 });
             }
         });
-    }
-
-    private void setTransferring(boolean transferring) {
-        uploadButton.setDisable(transferring);
-        downloadButton.setDisable(transferring);
     }
 }
