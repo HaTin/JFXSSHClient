@@ -1,6 +1,9 @@
 {
   "app.title": "JFX SSH 客户端",
 
+  "button.ok": "确定",
+  "button.cancel": "取消",
+
   "menu.file": "文件",
   "menu.file.new_connection": "新建连接",
   "menu.file.import": "导入",
@@ -66,6 +69,7 @@
   "dialog.connection.new_title": "新建连接",
   "dialog.connection.edit_title": "编辑连接",
   "dialog.connection.name": "名称",
+  "dialog.connection.host": "主机",
   "dialog.connection.port": "端口",
   "dialog.connection.username": "用户名",
   "dialog.connection.auth": "认证方式",

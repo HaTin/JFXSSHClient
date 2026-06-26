@@ -1,6 +1,9 @@
 {
   "app.title": "JFX SSH Client",
 
+  "button.ok": "OK",
+  "button.cancel": "Cancel",
+
   "menu.file": "File",
   "menu.file.new_connection": "New Connection",
   "menu.file.import": "Import",
@@ -66,6 +69,7 @@
   "dialog.connection.new_title": "New Connection",
   "dialog.connection.edit_title": "Edit Connection",
   "dialog.connection.name": "Name",
+  "dialog.connection.host": "Host",
   "dialog.connection.port": "Port",
   "dialog.connection.username": "Username",
   "dialog.connection.auth": "Authentication",
