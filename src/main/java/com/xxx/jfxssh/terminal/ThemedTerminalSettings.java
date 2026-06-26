@@ -48,8 +48,9 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
 
     @Override
     public int getBufferMaxLinesCount() {
-        // 限制回滚缓冲行数，避免大量输出占用过多内存
-        return 2000;
+        // 回滚历史行数。堆外内存主要来自 NIO/渲染（已用 JVM 参数解决），
+        // 这里给足历史；每行占用很小，10000 行内存代价可忽略。
+        return 10000;
     }
 
     @Override
