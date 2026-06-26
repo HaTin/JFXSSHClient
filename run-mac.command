@@ -13,4 +13,6 @@ if [ -n "$JAVA_HOME" ]; then
   JAVA="$JAVA_HOME/bin/java"
 fi
 
-exec "$JAVA" -Xmx768m --add-modules javafx.controls,javafx.swing -jar jfxssh.jar
+exec "$JAVA" -Xmx512m -XX:MaxDirectMemorySize=128m \
+  -XX:+UseStringDeduplication -XX:G1PeriodicGCInterval=10000 \
+  --add-modules javafx.controls,javafx.swing -jar jfxssh.jar

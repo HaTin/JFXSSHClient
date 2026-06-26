@@ -129,7 +129,10 @@
                 <configuration>
                     <executable>${java.home}/bin/java</executable>
                     <arguments>
-                        <argument>-Xmx768m</argument>
+                        <argument>-Xmx512m</argument>
+                        <argument>-XX:MaxDirectMemorySize=128m</argument>
+                        <argument>-XX:+UseStringDeduplication</argument>
+                        <argument>-XX:G1PeriodicGCInterval=10000</argument>
                         <argument>--add-modules</argument>
                         <argument>javafx.controls,javafx.swing</argument>
                         <argument>-classpath</argument>
