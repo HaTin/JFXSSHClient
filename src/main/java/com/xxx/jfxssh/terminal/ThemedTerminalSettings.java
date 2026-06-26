@@ -45,4 +45,10 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
     public float getTerminalFontSize() {
         return font.size();
     }
+
+    @Override
+    public int getBufferMaxLinesCount() {
+        // 限制回滚缓冲行数，避免大量输出占用过多内存
+        return 5000;
+    }
 }

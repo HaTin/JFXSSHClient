@@ -361,7 +361,18 @@ public final class ConnectionTreeView {
         return mi;
     }
 
+    /**
+     * 单元格按节点类型设置右键菜单。
+     *
+     * <p>三个菜单<b>每个单元格只构建一次</b>并缓存复用：避免每次 updateItem 都新建
+     * 菜单与 I18n.tp 绑定（绑定会强引用静态 locale，反复创建会累积泄漏）。菜单动作
+     * 在点击时通过 {@link #getItem()} 读取当前节点，因而单元格复用也正确。</p>
+     */
     private final class ContextTreeCell extends TreeCell<TreeNodeData> {
+
+        private ContextMenu rootMenu;
+        private ContextMenu groupMenu;
+        private ContextMenu connectionMenu;
 
         @Override
         protected void updateItem(TreeNodeData item, boolean empty) {
@@ -372,30 +383,60 @@ public final class ConnectionTreeView {
                 return;
             }
             setText(item.displayName());
-            setContextMenu(buildMenu(item));
-        }
-
-        private ContextMenu buildMenu(TreeNodeData data) {
-            switch (data.type()) {
+            switch (item.type()) {
                 case ROOT:
-                    return new ContextMenu(
-                            menuItem("tree.menu.new_connection", () -> createConnection(null)),
-                            menuItem("tree.menu.add_group", () -> addGroup(null)));
+                    setContextMenu(rootMenu());
+                    break;
                 case GROUP:
-                    return new ContextMenu(
-                            menuItem("tree.menu.new_connection", () -> createConnection(data.group())),
-                            menuItem("tree.menu.add_group", () -> addGroup(data.group())),
-                            menuItem("tree.menu.rename_group", () -> renameGroup(data.group())),
-                            menuItem("tree.menu.delete_group", () -> deleteGroup(data.group())));
+                    setContextMenu(groupMenu());
+                    break;
                 case CONNECTION:
                 default:
-                    return new ContextMenu(
-                            menuItem("tree.menu.connect", () -> connect(data.connection())),
-                            new SeparatorMenuItem(),
-                            menuItem("tree.menu.edit", () -> editConnection(data.connection())),
-                            menuItem("tree.menu.duplicate", () -> duplicateConnection(data.connection())),
-                            menuItem("tree.menu.delete", () -> deleteConnection(data.connection())));
+                    setContextMenu(connectionMenu());
+                    break;
             }
+        }
+
+        private Group currentGroup() {
+            TreeNodeData data = getItem();
+            return data == null ? null : data.group();
+        }
+
+        private Connection currentConnection() {
+            TreeNodeData data = getItem();
+            return data == null ? null : data.connection();
+        }
+
+        private ContextMenu rootMenu() {
+            if (rootMenu == null) {
+                rootMenu = new ContextMenu(
+                        menuItem("tree.menu.new_connection", () -> createConnection(null)),
+                        menuItem("tree.menu.add_group", () -> addGroup(null)));
+            }
+            return rootMenu;
+        }
+
+        private ContextMenu groupMenu() {
+            if (groupMenu == null) {
+                groupMenu = new ContextMenu(
+                        menuItem("tree.menu.new_connection", () -> createConnection(currentGroup())),
+                        menuItem("tree.menu.add_group", () -> addGroup(currentGroup())),
+                        menuItem("tree.menu.rename_group", () -> renameGroup(currentGroup())),
+                        menuItem("tree.menu.delete_group", () -> deleteGroup(currentGroup())));
+            }
+            return groupMenu;
+        }
+
+        private ContextMenu connectionMenu() {
+            if (connectionMenu == null) {
+                connectionMenu = new ContextMenu(
+                        menuItem("tree.menu.connect", () -> connect(currentConnection())),
+                        new SeparatorMenuItem(),
+                        menuItem("tree.menu.edit", () -> editConnection(currentConnection())),
+                        menuItem("tree.menu.duplicate", () -> duplicateConnection(currentConnection())),
+                        menuItem("tree.menu.delete", () -> deleteConnection(currentConnection())));
+            }
+            return connectionMenu;
         }
     }
 }

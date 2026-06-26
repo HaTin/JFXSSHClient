@@ -48,8 +48,11 @@ java -version                    # 应显示 21，且为 Zulu/Liberica
 
 ```bash
 export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
-java --add-modules javafx.controls,javafx.swing -jar jfxssh.jar
+java -Xmx768m --add-modules javafx.controls,javafx.swing -jar jfxssh.jar
 ```
+
+> `-Xmx768m` 限制最大堆。macOS 上 JVM 默认最大堆是物理内存的 1/4（16G 内存即 4G），
+> 不限制时 RSS 可能很高；桌面 + 终端用 768M 足够。
 
 方式 B（双击）：在 Finder 双击 `run-mac.command`。
 - 首次可能被 Gatekeeper 拦：右键 → 打开，或在「系统设置 → 隐私与安全性」里允许。

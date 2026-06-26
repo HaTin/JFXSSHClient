@@ -129,6 +129,7 @@
                 <configuration>
                     <executable>${java.home}/bin/java</executable>
                     <arguments>
+                        <argument>-Xmx768m</argument>
                         <argument>--add-modules</argument>
                         <argument>javafx.controls,javafx.swing</argument>
                         <argument>-classpath</argument>
