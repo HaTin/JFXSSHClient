@@ -186,15 +186,15 @@ DONE
 
 ## 后续版本（产品需求 V2–V5）
 
-- **V2 SFTP**：进行中（首版已交付）。
-  - 首版（DONE）：独立窗口的 SFTP 文件浏览器，每连接一个 `Stage`；列出远程文件
-    （名称/大小/类型/修改时间，点列头排序、默认目录优先），地址栏 + 上级 + 刷新，
-    双击目录进入、双击文件下载到本地。SSH 层加 `SftpSession`/`MinaSftpSession` +
-    `SshSession.openSftp()`（Mina sshd-sftp）；UI 层 `ui/sftp`（SftpLauncher /
-    SftpBrowserLauncher / SftpBrowserWindow）；右键连接 → SFTP、Tools → SFTP（已启用）。
-    单线程执行器串行化 SFTP 调用，关窗释放 SFTP+SSH。测试：EmbeddedSshServer 加 SFTP
-    子系统 + 虚拟根，MinaSftpSessionTest（列目录 + 下载字节）。
-  - 待办：上传、删除、重命名、新建目录、下载进度、本地/远程双栏。
+- **V2 SFTP**：进行中（双栏文件管理器已交付）。
+  - 首版（DONE）：独立窗口的 SFTP 文件浏览器，列出远程文件、排序、双击进入/下载。
+  - 双栏增强（DONE）：左本地 + 右远程双栏（`LocalPane`/`RemotePane`），中间上传 / 下载按钮，
+    底部共享进度条 + 状态栏。支持：上传（本地→远程）、下载（远程→本地）、新建文件夹、
+    重命名、删除（远程递归删除；本地用 java.nio），上传 / 下载进度条（按 1% 节流回 FX）。
+    SSH 层加 `SftpProgress` 及 `upload/download(带进度)/mkdir/rename/delete(递归)`。
+    远程操作经单线程执行器串行化，传输中禁用上传/下载按钮。
+    测试：MinaSftpSessionTest 覆盖 list/download/upload(进度)/mkdir+rename+delete。
+  - 待办：文件夹整体上传/下载、断点续传、传输队列/多并发、拖拽。
 - **V3 Port Forward**：端口转发表格管理；Tools → Port Forward 菜单已置灰预留
 - **V4 Docker**：容器列表 / 详情 / 日志
 - **V5 AI 助手**：右侧可折叠聊天面板

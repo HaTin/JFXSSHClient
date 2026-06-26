@@ -40,8 +40,41 @@ public interface SftpSession extends AutoCloseable {
      *
      * @param remotePath 远程文件路径
      * @param localFile  本地目标文件（已存在则覆盖）
+     * @param progress   进度回调（可空）
      */
-    void download(String remotePath, File localFile);
+    void download(String remotePath, File localFile, SftpProgress progress);
+
+    /**
+     * 上传本地文件到远程。
+     *
+     * @param localFile  本地源文件
+     * @param remotePath 远程目标路径（已存在则覆盖）
+     * @param progress   进度回调（可空）
+     */
+    void upload(File localFile, String remotePath, SftpProgress progress);
+
+    /**
+     * 新建远程目录。
+     *
+     * @param path 目录路径
+     */
+    void mkdir(String path);
+
+    /**
+     * 重命名 / 移动远程条目。
+     *
+     * @param oldPath 原路径
+     * @param newPath 新路径
+     */
+    void rename(String oldPath, String newPath);
+
+    /**
+     * 删除远程条目；目录则递归删除其内容后再删除自身。
+     *
+     * @param path      条目路径
+     * @param directory 是否目录
+     */
+    void delete(String path, boolean directory);
 
     /**
      * @return SFTP 客户端是否仍存活

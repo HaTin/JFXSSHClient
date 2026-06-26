@@ -5,9 +5,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,17 +70,98 @@ final class MinaSftpSession implements SftpSession {
     }
 
     @Override
-    public void download(String remotePath, File localFile) {
+    public void download(String remotePath, File localFile, SftpProgress progress) {
+        long total = statSize(remotePath);
         try (InputStream in = client.read(remotePath);
              FileOutputStream out = new FileOutputStream(localFile)) {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
+            copy(in, out, total, progress);
             log.info("Downloaded {} -> {} from {}", remotePath, localFile.getAbsolutePath(), target());
         } catch (IOException e) {
             throw new SshConnectException("Failed to download '" + remotePath + "' from " + target(), e);
+        }
+    }
+
+    @Override
+    public void upload(File localFile, String remotePath, SftpProgress progress) {
+        long total = localFile.length();
+        try (FileInputStream in = new FileInputStream(localFile);
+             OutputStream out = client.write(remotePath)) {
+            copy(in, out, total, progress);
+            log.info("Uploaded {} -> {} on {}", localFile.getAbsolutePath(), remotePath, target());
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to upload '" + remotePath + "' to " + target(), e);
+        }
+    }
+
+    @Override
+    public void mkdir(String path) {
+        try {
+            client.mkdir(path);
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to create '" + path + "' on " + target(), e);
+        }
+    }
+
+    @Override
+    public void rename(String oldPath, String newPath) {
+        try {
+            client.rename(oldPath, newPath);
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to rename '" + oldPath + "' on " + target(), e);
+        }
+    }
+
+    @Override
+    public void delete(String path, boolean directory) {
+        try {
+            if (directory) {
+                deleteDirRecursive(path);
+            } else {
+                client.remove(path);
+            }
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to delete '" + path + "' on " + target(), e);
+        }
+    }
+
+    private void deleteDirRecursive(String path) throws IOException {
+        for (SftpClient.DirEntry entry : client.readDir(path)) {
+            String name = entry.getFilename();
+            if (".".equals(name) || "..".equals(name)) {
+                continue;
+            }
+            String child = path.endsWith("/") ? path + name : path + "/" + name;
+            if (entry.getAttributes().isDirectory()) {
+                deleteDirRecursive(child);
+            } else {
+                client.remove(child);
+            }
+        }
+        client.rmdir(path);
+    }
+
+    private long statSize(String path) {
+        try {
+            return client.stat(path).getSize();
+        } catch (IOException e) {
+            return -1L;
+        }
+    }
+
+    /** 分块拷贝并上报进度。 */
+    private void copy(InputStream in, OutputStream out, long total, SftpProgress progress) throws IOException {
+        byte[] buffer = new byte[BUFFER_SIZE];
+        long done = 0;
+        int read;
+        if (progress != null) {
+            progress.update(0, total);
+        }
+        while ((read = in.read(buffer)) != -1) {
+            out.write(buffer, 0, read);
+            done += read;
+            if (progress != null) {
+                progress.update(done, total);
+            }
         }
     }
 

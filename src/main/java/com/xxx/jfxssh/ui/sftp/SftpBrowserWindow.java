@@ -2,65 +2,42 @@ package com.xxx.jfxssh.ui.sftp;
 
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SftpEntry;
+import com.xxx.jfxssh.ssh.SftpProgress;
 import com.xxx.jfxssh.ssh.SftpSession;
 import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
-import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.stage.FileChooser;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.List;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * 独立的 SFTP 文件浏览窗口（每个连接一个）。
+ * 双栏 SFTP 文件管理窗口（每个连接一个）。
  *
- * <p>顶部地址栏（路径 + 上级 + 刷新），中部 {@link TableView} 列出远程文件（名称 / 大小 /
- * 类型 / 修改时间，支持点列头排序，默认目录优先），底部状态栏。双击目录进入、双击文件下载。</p>
- *
- * <p>所有 SFTP 调用经<b>单线程执行器</b>串行化（{@link SftpSession} 非线程安全），结果经
- * {@link Platform#runLater} 回到 FX 线程。关闭窗口时释放执行器、SFTP 与底层 SSH 会话。</p>
+ * <p>左 {@link LocalPane}（本地）、右 {@link RemotePane}（远程），中间上传 / 下载按钮，
+ * 底部共享进度条 + 状态栏。所有远程调用与传输经<b>单线程执行器</b>串行化，进度回调节流后
+ * 切回 FX 线程。关闭窗口释放执行器、SFTP 与底层 SSH 会话。</p>
  */
 public final class SftpBrowserWindow {
 
     private static final Logger log = LoggerFactory.getLogger(SftpBrowserWindow.class);
-
-    private static final DateTimeFormatter TIME_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
-
-    /** 目录优先，再按名称（不区分大小写）。 */
-    private static final Comparator<SftpEntry> DEFAULT_ORDER =
-            Comparator.comparing(SftpEntry::directory).reversed()
-                    .thenComparing(e -> e.name().toLowerCase());
 
     private final Stage stage;
     private final SftpSession sftp;
@@ -69,15 +46,15 @@ public final class SftpBrowserWindow {
     private final Consumer<SftpBrowserWindow> onClose;
     private final AtomicBoolean closing = new AtomicBoolean(false);
 
-    private final TextField pathField = new TextField();
-    private final TableView<SftpEntry> table = new TableView<>();
-    private final ObservableList<SftpEntry> rows = FXCollections.observableArrayList();
+    private final LocalPane localPane;
+    private final RemotePane remotePane;
+    private final ProgressBar progressBar = new ProgressBar(0);
     private final Label statusLabel = new Label();
-
-    private volatile String currentPath = "/";
+    private Button uploadButton;
+    private Button downloadButton;
 
     /**
-     * @param title   连接显示名（用于窗口标题）
+     * @param title   连接显示名（窗口标题）
      * @param sftp    已打开的 SFTP 会话
      * @param ssh     依附的 SSH 会话（窗口关闭时一并关闭）
      * @param owner   父窗口（可空）
@@ -94,15 +71,16 @@ public final class SftpBrowserWindow {
             return t;
         });
 
+        this.localPane = new LocalPane(statusLabel::setText);
+        this.remotePane = new RemotePane(sftp, executor, statusLabel::setText);
+
         this.stage = new Stage();
         if (owner != null) {
             stage.initOwner(owner);
         }
         stage.setTitle(I18n.t("sftp.title", title));
-        stage.setScene(new Scene(buildRoot(), 760, 520));
+        stage.setScene(new Scene(buildRoot(), 980, 600));
         stage.setOnCloseRequest(e -> close());
-
-        navigate(".");
     }
 
     /** 显示窗口。 */
@@ -134,200 +112,123 @@ public final class SftpBrowserWindow {
         }
     }
 
-    private BorderPane buildRoot() {
-        BorderPane root = new BorderPane();
-        root.setTop(buildAddressBar());
-        root.setCenter(buildTable());
-        root.setBottom(buildStatusBar());
+    private VBox buildRoot() {
+        HBox panes = new HBox(6, localPane.getView(), buildMiddle(), remotePane.getView());
+        HBox.setHgrow(localPane.getView(), Priority.ALWAYS);
+        HBox.setHgrow(remotePane.getView(), Priority.ALWAYS);
+        VBox.setVgrow(panes, Priority.ALWAYS);
+
+        progressBar.setMaxWidth(220);
+        progressBar.setVisible(false);
+        HBox statusBar = new HBox(10, progressBar, statusLabel);
+        statusBar.setAlignment(Pos.CENTER_LEFT);
+        statusBar.setPadding(new Insets(4, 8, 4, 8));
+        statusBar.setStyle("-fx-border-color: -fx-accent; -fx-border-width: 1 0 0 0;");
+
+        VBox root = new VBox(panes, statusBar);
         return root;
     }
 
-    private HBox buildAddressBar() {
-        pathField.setEditable(true);
-        HBox.setHgrow(pathField, Priority.ALWAYS);
-        pathField.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                navigate(pathField.getText().replace('\\', '/'));
-            }
-        });
+    private VBox buildMiddle() {
+        uploadButton = new Button(I18n.t("sftp.button.upload"));
+        uploadButton.setMaxWidth(Double.MAX_VALUE);
+        uploadButton.setOnAction(e -> upload());
+        downloadButton = new Button(I18n.t("sftp.button.download"));
+        downloadButton.setMaxWidth(Double.MAX_VALUE);
+        downloadButton.setOnAction(e -> download());
 
-        Button up = new Button(I18n.t("sftp.button.up"));
-        up.setOnAction(e -> navigate(parentOf(currentPath)));
-        Button refresh = new Button(I18n.t("sftp.button.refresh"));
-        refresh.setOnAction(e -> navigate(currentPath));
-
-        HBox bar = new HBox(6, pathField, up, refresh);
-        bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(6));
-        return bar;
+        VBox box = new VBox(10, uploadButton, downloadButton);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(0, 4, 0, 4));
+        return box;
     }
 
-    private TableView<SftpEntry> buildTable() {
-        TableColumn<SftpEntry, String> nameCol = new TableColumn<>(I18n.t("sftp.column.name"));
-        nameCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().name()));
-        nameCol.setComparator(String.CASE_INSENSITIVE_ORDER);
-        nameCol.setPrefWidth(320);
-
-        TableColumn<SftpEntry, Long> sizeCol = new TableColumn<>(I18n.t("sftp.column.size"));
-        sizeCol.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().size()));
-        sizeCol.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(Long value, boolean empty) {
-                super.updateItem(value, empty);
-                SftpEntry entry = empty || getTableRow() == null ? null : getTableRow().getItem();
-                if (empty || value == null || entry == null) {
-                    setText(null);
-                } else {
-                    setText(entry.directory() ? "-" : humanSize(value));
-                }
-            }
-        });
-        sizeCol.setStyle("-fx-alignment: CENTER-RIGHT;");
-        sizeCol.setPrefWidth(110);
-
-        TableColumn<SftpEntry, String> typeCol = new TableColumn<>(I18n.t("sftp.column.type"));
-        typeCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(typeLabel(cd.getValue())));
-        typeCol.setPrefWidth(90);
-
-        TableColumn<SftpEntry, Long> modCol = new TableColumn<>(I18n.t("sftp.column.modified"));
-        modCol.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().modifiedEpochMillis()));
-        modCol.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(Long value, boolean empty) {
-                super.updateItem(value, empty);
-                setText(empty || value == null || value == 0L ? (empty ? null : "-")
-                        : TIME_FMT.format(Instant.ofEpochMilli(value)));
-            }
-        });
-        modCol.setPrefWidth(170);
-
-        table.getColumns().add(nameCol);
-        table.getColumns().add(sizeCol);
-        table.getColumns().add(typeCol);
-        table.getColumns().add(modCol);
-        table.setItems(rows);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        table.setRowFactory(tv -> {
-            TableRow<SftpEntry> row = new TableRow<>();
-            row.setOnMouseClicked(e -> {
-                if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    onActivate(row.getItem());
-                }
-            });
-            return row;
-        });
-        return table;
-    }
-
-    private HBox buildStatusBar() {
-        HBox bar = new HBox(statusLabel);
-        bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(4, 8, 4, 8));
-        bar.setStyle("-fx-border-color: -fx-accent; -fx-border-width: 1 0 0 0;");
-        return bar;
-    }
-
-    /** 双击：目录进入，文件下载。符号链接首版当作文件处理（不导航）。 */
-    private void onActivate(SftpEntry entry) {
-        if (entry.directory()) {
-            navigate(join(currentPath, entry.name()));
-        } else {
-            download(entry);
-        }
-    }
-
-    /** 在执行器上加载目录，成功后刷新表格与路径。 */
-    private void navigate(String path) {
-        statusLabel.setText(I18n.t("sftp.status.loading"));
-        executor.submit(() -> {
-            try {
-                String canonical = sftp.canonicalPath(path);
-                List<SftpEntry> entries = sftp.list(canonical);
-                entries.sort(DEFAULT_ORDER);
-                Platform.runLater(() -> {
-                    currentPath = canonical;
-                    pathField.setText(canonical);
-                    rows.setAll(entries);
-                    table.getSortOrder().clear();
-                    statusLabel.setText(I18n.t("sftp.status.items", String.valueOf(entries.size())));
-                });
-            } catch (RuntimeException ex) {
-                log.warn("List failed for {}: {}", path, ex.getMessage());
-                Platform.runLater(() -> statusLabel.setText(I18n.t("sftp.status.load_fail", path)));
-            }
-        });
-    }
-
-    /** 选择本地保存位置后在执行器上下载。 */
-    private void download(SftpEntry entry) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(I18n.t("dialog.sftp.download.title"));
-        chooser.setInitialFileName(entry.name());
-        File local = chooser.showSaveDialog(stage);
-        if (local == null) {
+    /** 本地选中文件 → 远程当前目录。 */
+    private void upload() {
+        LocalPane.LocalEntry entry = localPane.selected();
+        if (entry == null) {
             return;
         }
-        String remote = join(currentPath, entry.name());
-        statusLabel.setText(I18n.t("sftp.status.downloading", entry.name()));
+        if (entry.directory()) {
+            UiDialogs.error(I18n.t("sftp.error.dir_unsupported"));
+            return;
+        }
+        File local = entry.path().toFile();
+        String remote = remotePane.resolve(entry.name());
+        transfer(true, entry.name(),
+                progress -> sftp.upload(local, remote, progress),
+                remotePane::refresh);
+    }
+
+    /** 远程选中文件 → 本地当前目录。 */
+    private void download() {
+        SftpEntry entry = remotePane.selected();
+        if (entry == null) {
+            return;
+        }
+        if (entry.directory()) {
+            UiDialogs.error(I18n.t("sftp.error.dir_unsupported"));
+            return;
+        }
+        String remote = remotePane.resolve(entry.name());
+        Path local = localPane.currentDir().resolve(entry.name());
+        transfer(false, entry.name(),
+                progress -> sftp.download(remote, local.toFile(), progress),
+                localPane::refresh);
+    }
+
+    /**
+     * 在执行器上执行一次传输并驱动进度条。
+     *
+     * @param uploading  true 上传 / false 下载（仅用于状态文案）
+     * @param name       文件名
+     * @param action     实际传输动作（接收进度回调）
+     * @param onDone     成功后在 FX 线程的刷新动作
+     */
+    private void transfer(boolean uploading, String name, Consumer<SftpProgress> action, Runnable onDone) {
+        setTransferring(true);
+        statusLabel.setText(I18n.t(uploading ? "sftp.status.uploading" : "sftp.status.downloading", name));
+        progressBar.setProgress(0);
+        progressBar.setVisible(true);
+
+        // 节流：仅当百分比变化 >= 1% 时回 FX 线程
+        long[] lastPercent = {-1};
+        SftpProgress progress = (transferred, total) -> {
+            if (total <= 0) {
+                return;
+            }
+            long percent = transferred * 100 / total;
+            if (percent != lastPercent[0]) {
+                lastPercent[0] = percent;
+                Platform.runLater(() -> progressBar.setProgress(percent / 100.0));
+            }
+        };
+
         executor.submit(() -> {
             try {
-                sftp.download(remote, local);
-                Platform.runLater(() -> statusLabel.setText(
-                        I18n.t("sftp.status.download_done", local.getName())));
-            } catch (RuntimeException ex) {
-                log.warn("Download failed for {}: {}", remote, ex.getMessage());
+                action.accept(progress);
                 Platform.runLater(() -> {
-                    statusLabel.setText(I18n.t("sftp.status.items", String.valueOf(rows.size())));
-                    UiDialogs.error(I18n.t("msg.sftp.download.fail", entry.name()));
+                    progressBar.setProgress(1);
+                    progressBar.setVisible(false);
+                    statusLabel.setText(I18n.t(
+                            uploading ? "sftp.status.upload_done" : "sftp.status.download_done", name));
+                    setTransferring(false);
+                    onDone.run();
+                });
+            } catch (RuntimeException ex) {
+                log.warn("Transfer failed for {}: {}", name, ex.getMessage());
+                Platform.runLater(() -> {
+                    progressBar.setVisible(false);
+                    setTransferring(false);
+                    UiDialogs.error(I18n.t(
+                            uploading ? "sftp.error.upload" : "sftp.error.download", name));
                 });
             }
         });
     }
 
-    private String typeLabel(SftpEntry e) {
-        if (e.directory()) {
-            return I18n.t("sftp.type.directory");
-        }
-        if (e.symlink()) {
-            return I18n.t("sftp.type.symlink");
-        }
-        return I18n.t("sftp.type.file");
-    }
-
-    /** 拼接远程路径（始终用 '/'）。 */
-    private static String join(String base, String name) {
-        if (base.endsWith("/")) {
-            return base + name;
-        }
-        return base + "/" + name;
-    }
-
-    /** 远程父目录（POSIX）。 */
-    private static String parentOf(String path) {
-        if (path == null || path.equals("/") || path.isBlank()) {
-            return "/";
-        }
-        String p = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-        int idx = p.lastIndexOf('/');
-        if (idx <= 0) {
-            return "/";
-        }
-        return p.substring(0, idx);
-    }
-
-    /** 人类可读字节大小。 */
-    private static String humanSize(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        String[] units = {"KB", "MB", "GB", "TB", "PB"};
-        double value = bytes;
-        int unit = -1;
-        do {
-            value /= 1024.0;
-            unit++;
-        } while (value >= 1024.0 && unit < units.length - 1);
-        return String.format("%.1f %s", value, units[unit]);
+    private void setTransferring(boolean transferring) {
+        uploadButton.setDisable(transferring);
+        downloadButton.setDisable(transferring);
     }
 }
