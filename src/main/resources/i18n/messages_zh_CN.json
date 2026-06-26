@@ -41,6 +41,14 @@
   "about.message": "JFX SSH 客户端\n基于 JavaFX 的跨平台 SSH 客户端。\n\n版本：{0}\n开发者：@HaTin",
   "help.documentation.message": "文档位于项目 docs/ 目录（架构、数据库、i18n 等）。",
 
+  "dialog.export.title": "导出连接",
+  "dialog.import.title": "导入连接",
+  "dialog.export.password_note": "密码不会被导出。\n\n连接密码用主密码加密存储，且密钥只在本机有效——换台机器无法解密；若以明文导出则不安全。\n\n本次导出仅包含连接信息与分组结构。是否继续？",
+  "msg.export.done": "已导出 {0} 个连接、{1} 个分组。",
+  "msg.export.fail": "导出失败：{0}",
+  "msg.import.done": "已导入 {0} 个连接（跳过 {1} 个重复/无效）。",
+  "msg.import.fail": "导入失败：{0}",
+
   "lang.en": "English",
   "lang.zh_CN": "简体中文",
 

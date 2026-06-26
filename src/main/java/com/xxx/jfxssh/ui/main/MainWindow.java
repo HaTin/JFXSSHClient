@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ui.main;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ConnectionPortService;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
@@ -20,6 +21,9 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.FileChooser;
+
+import java.io.File;
 
 /**
  * 主窗口框架（见 docs/UI_DESIGN.md）。
@@ -34,6 +38,7 @@ public final class MainWindow {
     private final AppConfig config;
     private final TerminalTabsPane terminalTabs;
     private final ConnectionTreeView connectionTree;
+    private final ConnectionPortService portService;
     private final BorderPane root = new BorderPane();
 
     private MenuItem lightThemeItem;
@@ -60,6 +65,7 @@ public final class MainWindow {
         this.terminalTabs = new TerminalTabsPane(sshService, config);
         this.connectionTree = new ConnectionTreeView(
                 connectionService, groupService, terminalTabs::openTerminal, vault, config);
+        this.portService = new ConnectionPortService(connectionService, groupService);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
         root.setBottom(new StatusBar().getView());
@@ -118,8 +124,8 @@ public final class MainWindow {
         Menu file = menu("menu.file");
         file.getItems().addAll(
                 newConnection,
-                item("menu.file.import"),
-                item("menu.file.export"),
+                item("menu.file.import", this::importConnections),
+                item("menu.file.export", this::exportConnections),
                 settingsItem,
                 exitItem());
 
@@ -234,6 +240,46 @@ public final class MainWindow {
 
     private void showDocumentation() {
         UiDialogs.info("menu.help.documentation", I18n.t("help.documentation.message"));
+    }
+
+    private void exportConnections() {
+        // 提示：密码不导出（密文绑定本机主密码，换机无法解密；导出明文不安全）
+        if (!UiDialogs.confirm("dialog.export.title", I18n.t("dialog.export.password_note"))) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.t("dialog.export.title"));
+        chooser.setInitialFileName("jfxssh-connections.json");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
+        File file = chooser.showSaveDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+        try {
+            int[] n = portService.exportTo(file.toPath());
+            UiDialogs.info("dialog.export.title",
+                    I18n.t("msg.export.done", String.valueOf(n[0]), String.valueOf(n[1])));
+        } catch (RuntimeException e) {
+            UiDialogs.error(I18n.t("msg.export.fail", e.getMessage()));
+        }
+    }
+
+    private void importConnections() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.t("dialog.import.title"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
+        File file = chooser.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+        try {
+            int[] n = portService.importFrom(file.toPath());
+            connectionTree.reload();
+            UiDialogs.info("dialog.import.title",
+                    I18n.t("msg.import.done", String.valueOf(n[0]), String.valueOf(n[1])));
+        } catch (RuntimeException e) {
+            UiDialogs.error(I18n.t("msg.import.fail", e.getMessage()));
+        }
     }
 
     private MenuItem disabled(MenuItem item) {

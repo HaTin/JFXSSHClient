@@ -41,6 +41,14 @@
   "about.message": "JFX SSH Client\nA cross-platform SSH client built with JavaFX.\n\nVersion: {0}\nDeveloper: @HaTin",
   "help.documentation.message": "Documentation lives in the project's docs/ directory (architecture, database, i18n, etc.).",
 
+  "dialog.export.title": "Export Connections",
+  "dialog.import.title": "Import Connections",
+  "dialog.export.password_note": "Passwords will NOT be exported.\n\nConnection passwords are encrypted with your master password and only valid on this machine — they cannot be decrypted elsewhere, and exporting them in plain text would be insecure.\n\nThe export includes connection details and group structure only. Continue?",
+  "msg.export.done": "Exported {0} connections and {1} groups.",
+  "msg.export.fail": "Export failed: {0}",
+  "msg.import.done": "Imported {0} connections (skipped {1} duplicates/invalid).",
+  "msg.import.fail": "Import failed: {0}",
+
   "lang.en": "English",
   "lang.zh_CN": "简体中文",
 
