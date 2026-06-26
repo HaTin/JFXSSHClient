@@ -22,6 +22,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -97,12 +98,11 @@ public final class TerminalTabsPane {
         // 允许收缩到任意宽度，避免 SwingNode 最小尺寸导致拖动分隔条时被挤压留白
         StackPane center = new StackPane(swingNode);
         center.setMinSize(0, 0);
-        // 底部输入框（JavaFX 控件，输入法正常，支持中文）：浮在终端底部，
-        // 内容超过一行向上展开，不改变终端（SwingNode）大小
-        TextArea inputBar = buildInputBar();
-        StackPane.setAlignment(inputBar, Pos.BOTTOM_CENTER);
-        center.getChildren().add(inputBar);
+        // 点击终端区域 → 把焦点交回终端（修复点输入框/左侧后点终端不切焦点）
+        center.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> focusActiveTerminal());
         root.setCenter(center);
+        // 底部独立输入区（不再悬浮遮挡终端最后一行）
+        root.setBottom(buildInputBar());
         root.setMinWidth(0);
 
         SwingUtilities.invokeLater(() -> {
@@ -189,6 +189,16 @@ public final class TerminalTabsPane {
         } catch (java.io.IOException e) {
             log.warn("Failed to send to terminal: {}", e.getMessage());
             return false;
+        }
+    }
+
+    /** 把键盘焦点交给当前活动终端（JavaFX 层 + Swing 层）。 */
+    private void focusActiveTerminal() {
+        Entry entry = selectedCardId == null ? null : entries.get(selectedCardId);
+        Platform.runLater(swingNode::requestFocus);
+        if (entry != null && entry.widget != null) {
+            JediTermWidget widget = entry.widget;
+            SwingUtilities.invokeLater(() -> widget.getTerminalPanel().requestFocusInWindow());
         }
     }
 
