@@ -279,17 +279,23 @@ public final class TerminalTabsPane {
     /**
      * 为连接打开终端：先后台建立 SSH 连接，成功才创建标签。
      *
-     * @param connection 连接
-     * @param config     SSH 连接配置
+     * @param connection  连接
+     * @param config      SSH 连接配置
+     * @param onConnected 连接成功后在 FX 线程回调（可空）
      */
-    public void openTerminal(Connection connection, SshConnectionConfig config) {
+    public void openTerminal(Connection connection, SshConnectionConfig config, Runnable onConnected) {
         String name = displayName(connection);
         String target = config.getHost() + ":" + config.getPort();
         Thread worker = new Thread(() -> {
             try {
                 SshSession session = sshService.connect(config);
                 SshShell shell = session.openShell(COLUMNS, ROWS);
-                Platform.runLater(() -> createTab(name, config, session, shell));
+                Platform.runLater(() -> {
+                    createTab(name, config, session, shell);
+                    if (onConnected != null) {
+                        onConnected.run();
+                    }
+                });
             } catch (RuntimeException ex) {
                 log.warn("Connect failed for {}: {}", target, ex.getMessage());
                 Platform.runLater(() -> UiDialogs.error(I18n.t("msg.connect.fail", target)));

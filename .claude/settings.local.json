@@ -50,7 +50,10 @@
       "Bash(curl -fsS \"https://cache-redirector.jetbrains.com/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml\")",
       "Bash(echo \"exit=$?\")",
       "Bash(curl -fsS https://packages.jetbrains.team/maven/p/ij/intellij-dependencies/org/jetbrains/jediterm/jediterm-core/maven-metadata.xml)",
-      "Bash(chmod +x run-mac.command)"
+      "Bash(chmod +x run-mac.command)",
+      "Bash(mvn -q compile)",
+      "Bash(python3 *)",
+      "Bash(git commit -q -m 'feat\\(connection\\): offer to save manually-entered credentials after connect *)"
     ]
   }
 }

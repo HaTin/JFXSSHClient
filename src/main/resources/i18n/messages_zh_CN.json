@@ -141,6 +141,8 @@
 
   "dialog.password.title": "密码",
   "dialog.password.prompt": "{0} 的密码：",
+  "dialog.save_cred.title": "保存凭据",
+  "dialog.save_cred.prompt": "已连接。是否将这些凭据保存到该连接，以便下次免输？（密码将使用主密码加密存储。）",
 
   "msg.connect.success": "已成功连接到 {0}。",
   "msg.connect.fail": "连接 {0} 失败。",

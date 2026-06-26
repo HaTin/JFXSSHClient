@@ -216,19 +216,50 @@ public final class ConnectionTreeView {
 
     /**
      * 打开终端：解析认证（已存密码→主密码解锁解密，可重试或改用其他方式），
-     * 委托打开终端标签页。
+     * 委托打开终端标签页；若凭据为本次手动输入，连接成功后提示是否保存到该连接。
      */
     private void connect(Connection c) {
-        SshConnectionConfig config = buildConfig(c);
-        if (config == null) {
+        AuthResult result = buildConfig(c);
+        if (result == null) {
             return;
         }
+        Runnable onConnected = result.entered() ? () -> offerSaveCredentials(c, result.config()) : null;
         log.info("Opening terminal for {}:{}", c.getHost(), c.getPort());
-        terminalLauncher.open(c, config);
+        terminalLauncher.open(c, result.config(), onConnected);
+    }
+
+    /** 认证解析结果：配置 + 凭据是否为本次手动输入（可提示保存）。 */
+    private record AuthResult(SshConnectionConfig config, boolean entered) {
+    }
+
+    /** 连接成功后，询问是否把本次输入的密码/私钥保存到该连接（下次免输）。 */
+    private void offerSaveCredentials(Connection c, SshConnectionConfig config) {
+        if (!UiDialogs.confirm("dialog.save_cred.title", I18n.t("dialog.save_cred.prompt"))) {
+            return;
+        }
+        if (config.getAuthType() == AuthType.PRIVATE_KEY) {
+            c.setAuthType(AuthType.PRIVATE_KEY);
+            c.setPrivateKeyPath(config.getPrivateKeyPath());
+            connectionService.update(c);
+            reload();
+            return;
+        }
+        String pw = config.getPassword();
+        if (pw == null || pw.isEmpty()) {
+            return;
+        }
+        if (!ensureUnlocked()) {
+            UiDialogs.info("app.title", I18n.t("dialog.master.not_saved"));
+            return;
+        }
+        c.setAuthType(AuthType.PASSWORD);
+        c.setPasswordEnc(vault.encrypt(pw));
+        connectionService.update(c);
+        reload();
     }
 
     /** 构建连接配置；用户全程取消返回 null。 */
-    private SshConnectionConfig buildConfig(Connection c) {
+    private AuthResult buildConfig(Connection c) {
         int keepAlive = config.getInt(AppConfig.KEY_SSH_KEEPALIVE, AppConfig.DEFAULT_SSH_KEEPALIVE);
         int timeout = config.getInt(AppConfig.KEY_SSH_TIMEOUT, AppConfig.DEFAULT_SSH_TIMEOUT);
         SshConnectionConfig.Builder builder = SshConnectionConfig.builder(c.getHost(), c.getUsername())
@@ -241,9 +272,9 @@ public final class ConnectionTreeView {
         }
 
         if (c.getAuthType() == AuthType.PRIVATE_KEY) {
-            return builder.authType(AuthType.PRIVATE_KEY)
+            return new AuthResult(builder.authType(AuthType.PRIVATE_KEY)
                     .privateKeyPath(c.getPrivateKeyPath())
-                    .build();
+                    .build(), false);
         }
 
         String enc = c.getPasswordEnc();
@@ -251,7 +282,7 @@ public final class ConnectionTreeView {
             if (vault.isUnlocked()) {
                 String pw = tryDecrypt(enc);
                 if (pw != null) {
-                    return builder.authType(AuthType.PASSWORD).password(pw).build();
+                    return new AuthResult(builder.authType(AuthType.PASSWORD).password(pw).build(), false);
                 }
             } else {
                 boolean showError = false;
@@ -272,7 +303,7 @@ public final class ConnectionTreeView {
                     if (ok) {
                         String pw = tryDecrypt(enc);
                         if (pw != null) {
-                            return builder.authType(AuthType.PASSWORD).password(pw).build();
+                            return new AuthResult(builder.authType(AuthType.PASSWORD).password(pw).build(), false);
                         }
                         break;
                     }
@@ -283,8 +314,8 @@ public final class ConnectionTreeView {
         return chooseMethod(c, builder);
     }
 
-    /** 让用户选择认证方式（密码 / 私钥）并补全配置；取消返回 null。 */
-    private SshConnectionConfig chooseMethod(Connection c, SshConnectionConfig.Builder builder) {
+    /** 让用户选择认证方式（密码 / 私钥）并补全配置；取消返回 null。entered=true 表示手动输入。 */
+    private AuthResult chooseMethod(Connection c, SshConnectionConfig.Builder builder) {
         UiDialogs.AuthChoice choice = UiDialogs.chooseAuthMethod();
         if (choice == UiDialogs.AuthChoice.CANCEL) {
             return null;
@@ -296,7 +327,7 @@ public final class ConnectionTreeView {
             if (pw.isEmpty()) {
                 return null;
             }
-            return builder.authType(AuthType.PASSWORD).password(pw.get()).build();
+            return new AuthResult(builder.authType(AuthType.PASSWORD).password(pw.get()).build(), true);
         }
         // PRIVATE_KEY
         Optional<File> keyFile = UiDialogs.chooseKeyFile();
@@ -307,7 +338,7 @@ public final class ConnectionTreeView {
         UiDialogs.promptPassword(I18n.t("dialog.password.title"), I18n.t("dialog.key.passphrase_prompt"))
                 .filter(p -> !p.isBlank())
                 .ifPresent(builder::passphrase);
-        return builder.build();
+        return new AuthResult(builder.build(), true);
     }
 
     private String tryDecrypt(String enc) {

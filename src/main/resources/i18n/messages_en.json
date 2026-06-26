@@ -141,6 +141,8 @@
 
   "dialog.password.title": "Password",
   "dialog.password.prompt": "Password for {0}:",
+  "dialog.save_cred.title": "Save Credentials",
+  "dialog.save_cred.prompt": "Connected. Save these credentials to this connection so you don't have to enter them next time? (Passwords are stored encrypted with your master password.)",
 
   "msg.connect.success": "Connected successfully to {0}.",
   "msg.connect.fail": "Failed to connect to {0}.",
