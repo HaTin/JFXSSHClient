@@ -140,6 +140,26 @@ class MinaSftpSessionTest {
     }
 
     @Test
+    void multipleChannelsCoexist(@TempDir Path remote) throws Exception {
+        Files.writeString(remote.resolve("a.txt"), "a");
+        try (SshSession ssh = connect(remote)) {
+            // 浏览通道与传输通道同时存在、互不影响（修复"上传堵塞浏览"的设计依据）
+            SftpSession browse = ssh.openSftp();
+            SftpSession transfer = ssh.openSftp();
+            assertTrue(browse.isOpen());
+            assertTrue(transfer.isOpen());
+            assertEquals(1, browse.list(browse.home()).size());
+            assertEquals(1, transfer.list(transfer.home()).size());
+
+            transfer.close();
+            assertFalse(transfer.isOpen());
+            assertTrue(browse.isOpen(), "closing one channel must not close the other");
+            assertEquals(1, browse.list(browse.home()).size());
+            browse.close();
+        }
+    }
+
+    @Test
     void mkdirRenameDelete(@TempDir Path remote) throws Exception {
         try (SshSession ssh = connect(remote)) {
             SftpSession sftp = ssh.openSftp();
