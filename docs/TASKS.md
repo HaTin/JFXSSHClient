@@ -141,7 +141,8 @@ DONE
 
 - 设置窗口：File → Settings，TabPane General / Terminal / SSH
   - General：语言（已从 View 菜单归位）、主题、自动保存（实时生效）
-  - Terminal：字体、字号（**立即应用到所有已打开终端**，JediTerm reinitFontAndResize）；光标样式预留（置灰）
+  - Terminal：字体、字号（**立即应用到所有已打开终端**，JediTerm reinitFontAndResize）；
+    回滚行数（新终端生效，默认 10000）；光标样式预留（置灰）
   - SSH：KeepAlive、Timeout（对新连接生效）；主机密钥校验（已做实，默认开启）
 - 终端类型（PTY type）：新建/编辑连接可选 xterm-256color / xterm / vt100 / vt220 /
   ansi / linux / screen，作为每连接选项落库；connections 表加 terminal_type 列

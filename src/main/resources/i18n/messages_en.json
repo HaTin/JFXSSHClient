@@ -109,6 +109,7 @@
   "settings.general.auto_save": "Auto Save",
   "settings.terminal.font": "Font",
   "settings.terminal.font_size": "Font Size",
+  "settings.terminal.scrollback": "Scrollback (lines, new terminals)",
   "settings.terminal.cursor": "Cursor Style",
   "settings.ssh.keepalive": "KeepAlive (s)",
   "settings.ssh.timeout": "Timeout (s)",

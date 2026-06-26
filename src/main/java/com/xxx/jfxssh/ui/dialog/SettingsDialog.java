@@ -38,6 +38,7 @@ public final class SettingsDialog {
     // Terminal
     private final ComboBox<String> fontBox = new ComboBox<>();
     private final Spinner<Integer> fontSizeSpinner = new Spinner<>(10, 24, 14);
+    private final Spinner<Integer> scrollbackSpinner = new Spinner<>(500, 100000, 10000, 500);
     private final ComboBox<String> cursorBox = new ComboBox<>();
 
     // SSH
@@ -123,7 +124,8 @@ public final class SettingsDialog {
         GridPane grid = grid();
         grid.addRow(0, new Label(I18n.t("settings.terminal.font")), fontBox);
         grid.addRow(1, new Label(I18n.t("settings.terminal.font_size")), fontSizeSpinner);
-        grid.addRow(2, new Label(I18n.t("settings.terminal.cursor")), cursorBox);
+        grid.addRow(2, new Label(I18n.t("settings.terminal.scrollback")), scrollbackSpinner);
+        grid.addRow(3, new Label(I18n.t("settings.terminal.cursor")), cursorBox);
         return new Tab(I18n.t("settings.tab.terminal"), grid);
     }
 
@@ -153,6 +155,8 @@ public final class SettingsDialog {
         fontBox.setValue(config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT));
         fontSizeSpinner.getValueFactory().setValue(
                 config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE));
+        scrollbackSpinner.getValueFactory().setValue(
+                config.getInt(AppConfig.KEY_TERMINAL_SCROLLBACK, AppConfig.DEFAULT_TERMINAL_SCROLLBACK));
         cursorBox.setValue(config.get(AppConfig.KEY_TERMINAL_CURSOR, "STEADY_BLOCK"));
 
         keepAliveSpinner.getValueFactory().setValue(
@@ -179,6 +183,7 @@ public final class SettingsDialog {
         // Terminal / SSH：保存，对新建终端 / 新连接生效
         config.set(AppConfig.KEY_TERMINAL_FONT, fontBox.getValue());
         config.set(AppConfig.KEY_TERMINAL_FONT_SIZE, Integer.toString(fontSizeSpinner.getValue()));
+        config.set(AppConfig.KEY_TERMINAL_SCROLLBACK, Integer.toString(scrollbackSpinner.getValue()));
         config.set(AppConfig.KEY_TERMINAL_CURSOR, cursorBox.getValue());
         config.set(AppConfig.KEY_SSH_KEEPALIVE, Integer.toString(keepAliveSpinner.getValue()));
         config.set(AppConfig.KEY_SSH_TIMEOUT, Integer.toString(timeoutSpinner.getValue()));

@@ -21,14 +21,17 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
 
     private final boolean dark;
     private final TerminalFontModel font;
+    private final int scrollbackLines;
 
     /**
-     * @param dark 是否深色（创建后固定）
-     * @param font 共享字体模型（运行时可变，刷新后对已有终端生效）
+     * @param dark            是否深色（创建后固定）
+     * @param font            共享字体模型（运行时可变，刷新后对已有终端生效）
+     * @param scrollbackLines 回滚历史行数（创建时固定）
      */
-    public ThemedTerminalSettings(boolean dark, TerminalFontModel font) {
+    public ThemedTerminalSettings(boolean dark, TerminalFontModel font, int scrollbackLines) {
         this.dark = dark;
         this.font = font;
+        this.scrollbackLines = scrollbackLines;
     }
 
     @Override
@@ -48,9 +51,8 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
 
     @Override
     public int getBufferMaxLinesCount() {
-        // 回滚历史行数。堆外内存主要来自 NIO/渲染（已用 JVM 参数解决），
-        // 这里给足历史；每行占用很小，10000 行内存代价可忽略。
-        return 10000;
+        // 回滚历史行数（来自设置）。堆外内存主要来自 NIO/渲染，已用 JVM 参数解决。
+        return scrollbackLines;
     }
 
     @Override

@@ -311,7 +311,9 @@ public final class TerminalTabsPane {
                 () -> Platform.runLater(() -> reconnect(entry.cardId)));
         SwingUtilities.invokeLater(() -> {
             JediTermWidget widget = new JfxTermWidget(COLUMNS, ROWS,
-                    new ThemedTerminalSettings(dark, fontModel));
+                    new ThemedTerminalSettings(dark, fontModel,
+                            config.getInt(AppConfig.KEY_TERMINAL_SCROLLBACK,
+                                    AppConfig.DEFAULT_TERMINAL_SCROLLBACK)));
             // 允许控件收缩到 0，避免分隔条拖动时的留白挤压
             widget.setMinimumSize(new Dimension(0, 0));
             widget.getTerminalPanel().setMinimumSize(new Dimension(0, 0));

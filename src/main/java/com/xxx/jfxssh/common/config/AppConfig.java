@@ -46,6 +46,12 @@ public final class AppConfig {
     /** 终端字号默认值。 */
     public static final int DEFAULT_TERMINAL_FONT_SIZE = 14;
 
+    /** 终端回滚行数。 */
+    public static final String KEY_TERMINAL_SCROLLBACK = "terminal.scrollback";
+
+    /** 终端回滚行数默认值。 */
+    public static final int DEFAULT_TERMINAL_SCROLLBACK = 10000;
+
     /** 终端光标样式（预留）。 */
     public static final String KEY_TERMINAL_CURSOR = "terminal.cursor";
 
