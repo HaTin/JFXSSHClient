@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * SFTP 会话集成测试：基于 {@link EmbeddedSshServer}（虚拟根 + SFTP 子系统），
@@ -156,6 +157,29 @@ class MinaSftpSessionTest {
             assertTrue(browse.isOpen(), "closing one channel must not close the other");
             assertEquals(1, browse.list(browse.home()).size());
             browse.close();
+        }
+    }
+
+    @Test
+    void permissionDeniedReportsStatus(@TempDir Path remote, @TempDir Path localDir) throws Exception {
+        Path localFile = Files.writeString(localDir.resolve("src.bin"), "data");
+        java.io.File root = remote.toFile();
+        try (SshSession ssh = connect(remote)) {
+            SftpSession sftp = ssh.openSftp();
+            String target = sftp.canonicalPath(".") + "/denied.bin";
+            root.setWritable(false);
+            boolean threw = false;
+            try {
+                sftp.upload(localFile.toFile(), target, null, null);
+            } catch (SftpOperationException ex) {
+                threw = true;
+                assertEquals(3, ex.status(), "SSH_FX_PERMISSION_DENIED");
+            } finally {
+                root.setWritable(true);
+                sftp.close();
+            }
+            // 以 root 运行时只读目录无法生效（root 绕过权限检查），此时跳过断言
+            assumeTrue(threw, "environment cannot enforce read-only (running as root?)");
         }
     }
 

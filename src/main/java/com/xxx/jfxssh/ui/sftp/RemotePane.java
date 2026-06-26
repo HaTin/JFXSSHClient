@@ -211,7 +211,7 @@ final class RemotePane {
             return;
         }
         String path = join(currentPath, name.get());
-        runMutation(() -> sftp.mkdir(path), I18n.t("sftp.error.mkdir", name.get()));
+        runMutation(() -> sftp.mkdir(path), "sftp.error.mkdir", name.get());
     }
 
     private void rename() {
@@ -225,7 +225,7 @@ final class RemotePane {
         }
         String from = join(currentPath, entry.name());
         String to = join(currentPath, name.get());
-        runMutation(() -> sftp.rename(from, to), I18n.t("sftp.error.rename", entry.name()));
+        runMutation(() -> sftp.rename(from, to), "sftp.error.rename", entry.name());
     }
 
     private void delete() {
@@ -237,19 +237,20 @@ final class RemotePane {
             return;
         }
         String path = join(currentPath, entry.name());
-        runMutation(() -> sftp.delete(path, entry.directory()), I18n.t("sftp.error.delete", entry.name()));
+        runMutation(() -> sftp.delete(path, entry.directory()), "sftp.error.delete", entry.name());
     }
 
-    /** 在执行器上执行一个改动操作，成功后刷新，失败弹错并刷新。 */
-    private void runMutation(Runnable op, String errorMessage) {
+    /** 在执行器上执行一个改动操作，成功后刷新，失败弹出带原因的错误并刷新。 */
+    private void runMutation(Runnable op, String errorKey, String name) {
         executor.submit(() -> {
             try {
                 op.run();
                 Platform.runLater(this::refresh);
             } catch (RuntimeException ex) {
-                log.warn("{}: {}", errorMessage, ex.getMessage());
+                log.warn("{} failed: {}", errorKey, ex.getMessage());
+                String message = SftpErrors.message(errorKey, name, ex);
                 Platform.runLater(() -> {
-                    UiDialogs.error(errorMessage);
+                    UiDialogs.error(message);
                     refresh();
                 });
             }

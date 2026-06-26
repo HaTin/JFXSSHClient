@@ -224,7 +224,7 @@ final class LocalPane {
             Files.createDirectory(currentDir.resolve(name.get()));
             refresh();
         } catch (IOException ex) {
-            UiDialogs.error(I18n.t("sftp.error.mkdir", name.get()));
+            UiDialogs.error(SftpErrors.message("sftp.error.mkdir", name.get(), ex));
         }
     }
 
@@ -241,7 +241,7 @@ final class LocalPane {
             Files.move(entry.path(), currentDir.resolve(name.get()));
             refresh();
         } catch (IOException ex) {
-            UiDialogs.error(I18n.t("sftp.error.rename", entry.name()));
+            UiDialogs.error(SftpErrors.message("sftp.error.rename", entry.name(), ex));
         }
     }
 
@@ -261,7 +261,7 @@ final class LocalPane {
             }
             refresh();
         } catch (IOException ex) {
-            UiDialogs.error(I18n.t("sftp.error.delete", entry.name()));
+            UiDialogs.error(SftpErrors.message("sftp.error.delete", entry.name(), ex));
         }
     }
 

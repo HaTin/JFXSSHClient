@@ -1,6 +1,7 @@
 package com.xxx.jfxssh.ssh;
 
 import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.common.SftpException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ final class MinaSftpSession implements SftpSession {
         try {
             return client.canonicalPath(path);
         } catch (IOException e) {
-            throw new SshConnectException("Failed to resolve path '" + path + "' on " + target(), e);
+            throw wrap(e, "Failed to resolve path '" + path + "' on " + target());
         }
     }
 
@@ -66,7 +67,7 @@ final class MinaSftpSession implements SftpSession {
             }
             return entries;
         } catch (IOException e) {
-            throw new SshConnectException("Failed to list '" + path + "' on " + target(), e);
+            throw wrap(e, "Failed to list '" + path + "' on " + target());
         }
     }
 
@@ -81,7 +82,7 @@ final class MinaSftpSession implements SftpSession {
             deleteLocalQuietly(localFile);
             throw ce;
         } catch (IOException e) {
-            throw new SshConnectException("Failed to download '" + remotePath + "' from " + target(), e);
+            throw wrap(e, "Failed to download '" + remotePath + "' from " + target());
         }
     }
 
@@ -96,7 +97,7 @@ final class MinaSftpSession implements SftpSession {
             deleteRemoteQuietly(remotePath);
             throw ce;
         } catch (IOException e) {
-            throw new SshConnectException("Failed to upload '" + remotePath + "' to " + target(), e);
+            throw wrap(e, "Failed to upload '" + remotePath + "' to " + target());
         }
     }
 
@@ -105,7 +106,7 @@ final class MinaSftpSession implements SftpSession {
         try {
             client.mkdir(path);
         } catch (IOException e) {
-            throw new SshConnectException("Failed to create '" + path + "' on " + target(), e);
+            throw wrap(e, "Failed to create '" + path + "' on " + target());
         }
     }
 
@@ -114,7 +115,7 @@ final class MinaSftpSession implements SftpSession {
         try {
             client.rename(oldPath, newPath);
         } catch (IOException e) {
-            throw new SshConnectException("Failed to rename '" + oldPath + "' on " + target(), e);
+            throw wrap(e, "Failed to rename '" + oldPath + "' on " + target());
         }
     }
 
@@ -127,7 +128,7 @@ final class MinaSftpSession implements SftpSession {
                 client.remove(path);
             }
         } catch (IOException e) {
-            throw new SshConnectException("Failed to delete '" + path + "' on " + target(), e);
+            throw wrap(e, "Failed to delete '" + path + "' on " + target());
         }
     }
 
@@ -215,5 +216,17 @@ final class MinaSftpSession implements SftpSession {
 
     private String target() {
         return host + ":" + port;
+    }
+
+    /**
+     * 把底层 IOException 归一化：SFTP 协议错误转 {@link SftpOperationException}（带状态码），
+     * 其余转 {@link SshConnectException}。
+     */
+    private RuntimeException wrap(IOException e, String context) {
+        if (e instanceof SftpException se) {
+            log.warn("{} (sftp status {}): {}", context, se.getStatus(), se.getMessage());
+            return new SftpOperationException(se.getStatus(), context + ": " + se.getMessage());
+        }
+        return new SshConnectException(context, e);
     }
 }

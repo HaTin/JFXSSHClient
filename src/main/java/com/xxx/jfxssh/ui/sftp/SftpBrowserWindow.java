@@ -223,9 +223,12 @@ public final class SftpBrowserWindow {
                 });
             } catch (RuntimeException ex) {
                 log.warn("Transfer failed for {}: {}", name, ex.getMessage());
+                String message = SftpErrors.message(
+                        uploading ? "sftp.error.upload" : "sftp.error.download", name, ex);
                 Platform.runLater(() -> {
                     removeRow(row);
-                    UiDialogs.error(I18n.t(uploading ? "sftp.error.upload" : "sftp.error.download", name));
+                    statusLabel.setText(I18n.t("sftp.status.failed", name));
+                    UiDialogs.error(message);
                 });
             } finally {
                 if (channel != null) {
