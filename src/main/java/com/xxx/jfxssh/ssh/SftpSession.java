@@ -2,6 +2,7 @@ package com.xxx.jfxssh.ssh;
 
 import java.io.File;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * 一个已打开的 SFTP 会话（基于某条 {@link SshSession}）。
@@ -41,8 +42,9 @@ public interface SftpSession extends AutoCloseable {
      * @param remotePath 远程文件路径
      * @param localFile  本地目标文件（已存在则覆盖）
      * @param progress   进度回调（可空）
+     * @param cancelled  取消标志（可空）；返回 true 时中止并抛出 {@link SftpCancelledException}
      */
-    void download(String remotePath, File localFile, SftpProgress progress);
+    void download(String remotePath, File localFile, SftpProgress progress, BooleanSupplier cancelled);
 
     /**
      * 上传本地文件到远程。
@@ -50,8 +52,9 @@ public interface SftpSession extends AutoCloseable {
      * @param localFile  本地源文件
      * @param remotePath 远程目标路径（已存在则覆盖）
      * @param progress   进度回调（可空）
+     * @param cancelled  取消标志（可空）；返回 true 时中止并抛出 {@link SftpCancelledException}
      */
-    void upload(File localFile, String remotePath, SftpProgress progress);
+    void upload(File localFile, String remotePath, SftpProgress progress, BooleanSupplier cancelled);
 
     /**
      * 新建远程目录。

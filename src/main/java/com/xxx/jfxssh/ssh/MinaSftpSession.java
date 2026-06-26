@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * {@link SftpSession} 的 Apache Mina 实现。
@@ -70,24 +71,30 @@ final class MinaSftpSession implements SftpSession {
     }
 
     @Override
-    public void download(String remotePath, File localFile, SftpProgress progress) {
+    public void download(String remotePath, File localFile, SftpProgress progress, BooleanSupplier cancelled) {
         long total = statSize(remotePath);
         try (InputStream in = client.read(remotePath);
              FileOutputStream out = new FileOutputStream(localFile)) {
-            copy(in, out, total, progress);
+            copy(in, out, total, progress, cancelled);
             log.info("Downloaded {} -> {} from {}", remotePath, localFile.getAbsolutePath(), target());
+        } catch (SftpCancelledException ce) {
+            deleteLocalQuietly(localFile);
+            throw ce;
         } catch (IOException e) {
             throw new SshConnectException("Failed to download '" + remotePath + "' from " + target(), e);
         }
     }
 
     @Override
-    public void upload(File localFile, String remotePath, SftpProgress progress) {
+    public void upload(File localFile, String remotePath, SftpProgress progress, BooleanSupplier cancelled) {
         long total = localFile.length();
         try (FileInputStream in = new FileInputStream(localFile);
              OutputStream out = client.write(remotePath)) {
-            copy(in, out, total, progress);
+            copy(in, out, total, progress, cancelled);
             log.info("Uploaded {} -> {} on {}", localFile.getAbsolutePath(), remotePath, target());
+        } catch (SftpCancelledException ce) {
+            deleteRemoteQuietly(remotePath);
+            throw ce;
         } catch (IOException e) {
             throw new SshConnectException("Failed to upload '" + remotePath + "' to " + target(), e);
         }
@@ -148,8 +155,9 @@ final class MinaSftpSession implements SftpSession {
         }
     }
 
-    /** 分块拷贝并上报进度。 */
-    private void copy(InputStream in, OutputStream out, long total, SftpProgress progress) throws IOException {
+    /** 分块拷贝并上报进度；取消标志置位时中止并抛出 {@link SftpCancelledException}。 */
+    private void copy(InputStream in, OutputStream out, long total,
+                      SftpProgress progress, BooleanSupplier cancelled) throws IOException {
         byte[] buffer = new byte[BUFFER_SIZE];
         long done = 0;
         int read;
@@ -157,11 +165,28 @@ final class MinaSftpSession implements SftpSession {
             progress.update(0, total);
         }
         while ((read = in.read(buffer)) != -1) {
+            if (cancelled != null && cancelled.getAsBoolean()) {
+                throw new SftpCancelledException("Transfer cancelled");
+            }
             out.write(buffer, 0, read);
             done += read;
             if (progress != null) {
                 progress.update(done, total);
             }
+        }
+    }
+
+    private void deleteLocalQuietly(File file) {
+        if (file != null && file.exists() && !file.delete()) {
+            log.warn("Could not delete partial local file {}", file.getAbsolutePath());
+        }
+    }
+
+    private void deleteRemoteQuietly(String remotePath) {
+        try {
+            client.remove(remotePath);
+        } catch (IOException e) {
+            log.warn("Could not delete partial remote file {}: {}", remotePath, e.getMessage());
         }
     }
 

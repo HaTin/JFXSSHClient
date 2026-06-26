@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -92,7 +93,7 @@ class MinaSftpSessionTest {
 
             String remotePath = sftp.canonicalPath("data.bin");
             Path local = localDir.resolve("data.bin");
-            sftp.download(remotePath, local.toFile(), null);
+            sftp.download(remotePath, local.toFile(), null, null);
 
             assertArrayEquals(payload, Files.readAllBytes(local));
 
@@ -114,10 +115,26 @@ class MinaSftpSessionTest {
             SftpSession sftp = ssh.openSftp();
             long[] last = {-1};
             sftp.upload(localFile.toFile(), sftp.canonicalPath(".") + "/uploaded.bin",
-                    (transferred, total) -> last[0] = transferred);
+                    (transferred, total) -> last[0] = transferred, null);
 
             assertArrayEquals(payload, Files.readAllBytes(remote.resolve("uploaded.bin")));
             assertEquals(payload.length, last[0], "final progress should equal size");
+            sftp.close();
+        }
+    }
+
+    @Test
+    void uploadCancelledRemovesPartial(@TempDir Path remote, @TempDir Path localDir) throws Exception {
+        byte[] payload = new byte[200_000];
+        Path localFile = localDir.resolve("big.bin");
+        Files.write(localFile, payload);
+
+        try (SshSession ssh = connect(remote)) {
+            SftpSession sftp = ssh.openSftp();
+            String target = sftp.canonicalPath(".") + "/big.bin";
+            assertThrows(SftpCancelledException.class, () ->
+                    sftp.upload(localFile.toFile(), target, null, () -> true));
+            assertFalse(Files.exists(remote.resolve("big.bin")), "partial upload should be removed");
             sftp.close();
         }
     }

@@ -2,6 +2,7 @@ package com.xxx.jfxssh.ui.sftp;
 
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SftpEntry;
+import com.xxx.jfxssh.ssh.SftpCancelledException;
 import com.xxx.jfxssh.ssh.SftpProgress;
 import com.xxx.jfxssh.ssh.SftpSession;
 import com.xxx.jfxssh.ssh.SshSession;
@@ -10,10 +11,12 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -48,8 +51,11 @@ public final class SftpBrowserWindow {
     private final LocalPane localPane;
     private final RemotePane remotePane;
     private final ProgressBar progressBar = new ProgressBar(0);
+    private final Label transferLabel = new Label();
+    private final Button cancelButton = new Button();
     private final Label statusLabel = new Label();
     private final AtomicBoolean transferring = new AtomicBoolean(false);
+    private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
 
     /**
      * @param title   连接显示名（窗口标题）
@@ -116,9 +122,19 @@ public final class SftpBrowserWindow {
         HBox.setHgrow(remotePane.getView(), Priority.ALWAYS);
         VBox.setVgrow(panes, Priority.ALWAYS);
 
-        progressBar.setMaxWidth(220);
+        progressBar.setMaxWidth(180);
         progressBar.setVisible(false);
-        HBox statusBar = new HBox(10, progressBar, statusLabel);
+        transferLabel.setVisible(false);
+        cancelButton.setText(I18n.t("sftp.button.cancel"));
+        cancelButton.setVisible(false);
+        cancelButton.setOnAction(e -> {
+            cancelRequested.set(true);
+            cancelButton.setDisable(true);
+        });
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox statusBar = new HBox(10, progressBar, transferLabel, cancelButton, spacer, statusLabel);
         statusBar.setAlignment(Pos.CENTER_LEFT);
         statusBar.setPadding(new Insets(4, 8, 4, 8));
         statusBar.setStyle("-fx-border-color: -fx-accent; -fx-border-width: 1 0 0 0;");
@@ -142,7 +158,7 @@ public final class SftpBrowserWindow {
         File local = entry.path().toFile();
         String remote = remotePane.resolve(entry.name());
         transfer(true, entry.name(),
-                progress -> sftp.upload(local, remote, progress),
+                (progress, cancelled) -> sftp.upload(local, remote, progress, cancelled),
                 remotePane::refresh);
     }
 
@@ -162,57 +178,102 @@ public final class SftpBrowserWindow {
         String remote = remotePane.resolve(entry.name());
         Path local = localPane.currentDir().resolve(entry.name());
         transfer(false, entry.name(),
-                progress -> sftp.download(remote, local.toFile(), progress),
+                (progress, cancelled) -> sftp.download(remote, local.toFile(), progress, cancelled),
                 localPane::refresh);
     }
 
     /**
-     * 在执行器上执行一次传输并驱动进度条。
+     * 在执行器上执行一次传输并驱动进度条 / 百分比 / 速度 / 取消。
      *
-     * @param uploading  true 上传 / false 下载（仅用于状态文案）
-     * @param name       文件名
-     * @param action     实际传输动作（接收进度回调）
-     * @param onDone     成功后在 FX 线程的刷新动作
+     * @param uploading true 上传 / false 下载（仅用于文案）
+     * @param name      文件名
+     * @param action    实际传输动作（接收进度回调与取消标志）
+     * @param onDone    结束后在 FX 线程的刷新动作
      */
-    private void transfer(boolean uploading, String name, Consumer<SftpProgress> action, Runnable onDone) {
+    private void transfer(boolean uploading, String name, TransferAction action, Runnable onDone) {
         transferring.set(true);
+        cancelRequested.set(false);
         statusLabel.setText(I18n.t(uploading ? "sftp.status.uploading" : "sftp.status.downloading", name));
         progressBar.setProgress(0);
         progressBar.setVisible(true);
+        transferLabel.setText("");
+        transferLabel.setVisible(true);
+        cancelButton.setDisable(false);
+        cancelButton.setVisible(true);
 
-        // 节流：仅当百分比变化 >= 1% 时回 FX 线程
-        long[] lastPercent = {-1};
+        // 进度回调（传输线程）：按 ~150ms 节流，计算瞬时速度，回 FX 线程更新。
+        long[] lastNanos = {System.nanoTime()};
+        long[] lastBytes = {0};
         SftpProgress progress = (transferred, total) -> {
-            if (total <= 0) {
+            long now = System.nanoTime();
+            long since = now - lastNanos[0];
+            boolean done = total > 0 && transferred >= total;
+            if (since < 150_000_000L && !done) {
                 return;
             }
-            long percent = transferred * 100 / total;
-            if (percent != lastPercent[0]) {
-                lastPercent[0] = percent;
-                Platform.runLater(() -> progressBar.setProgress(percent / 100.0));
-            }
+            double seconds = since / 1_000_000_000.0;
+            double speed = seconds > 0 ? (transferred - lastBytes[0]) / seconds : 0;
+            lastNanos[0] = now;
+            lastBytes[0] = transferred;
+            double frac = total > 0 ? (double) transferred / total : ProgressBar.INDETERMINATE_PROGRESS;
+            String text = formatTransfer(transferred, total, speed);
+            Platform.runLater(() -> {
+                progressBar.setProgress(frac);
+                transferLabel.setText(text);
+            });
         };
 
         executor.submit(() -> {
             try {
-                action.accept(progress);
+                action.run(progress, cancelRequested::get);
                 Platform.runLater(() -> {
-                    progressBar.setProgress(1);
-                    progressBar.setVisible(false);
+                    endTransfer();
                     statusLabel.setText(I18n.t(
                             uploading ? "sftp.status.upload_done" : "sftp.status.download_done", name));
-                    transferring.set(false);
+                    onDone.run();
+                });
+            } catch (SftpCancelledException ce) {
+                Platform.runLater(() -> {
+                    endTransfer();
+                    statusLabel.setText(I18n.t("sftp.status.cancelled", name));
                     onDone.run();
                 });
             } catch (RuntimeException ex) {
                 log.warn("Transfer failed for {}: {}", name, ex.getMessage());
                 Platform.runLater(() -> {
-                    progressBar.setVisible(false);
-                    transferring.set(false);
+                    endTransfer();
                     UiDialogs.error(I18n.t(
                             uploading ? "sftp.error.upload" : "sftp.error.download", name));
                 });
             }
         });
+    }
+
+    /** 结束传输：隐藏进度控件、复位标志（FX 线程）。 */
+    private void endTransfer() {
+        progressBar.setVisible(false);
+        transferLabel.setVisible(false);
+        cancelButton.setVisible(false);
+        transferring.set(false);
+    }
+
+    /** 形如 "42%  12.3/29.0 MB  3.5 MB/s"。 */
+    private String formatTransfer(long transferred, long total, double bytesPerSec) {
+        String speed = SftpFormat.humanSize(Math.round(bytesPerSec)) + "/s";
+        if (total > 0) {
+            long percent = transferred * 100 / total;
+            return percent + "%  " + mb(transferred) + "/" + mb(total) + " MB  " + speed;
+        }
+        return mb(transferred) + " MB  " + speed;
+    }
+
+    private static String mb(long bytes) {
+        return String.format("%.1f", bytes / 1024.0 / 1024.0);
+    }
+
+    /** 传输动作：接收进度回调与取消标志。 */
+    @FunctionalInterface
+    private interface TransferAction {
+        void run(SftpProgress progress, java.util.function.BooleanSupplier cancelled);
     }
 }
