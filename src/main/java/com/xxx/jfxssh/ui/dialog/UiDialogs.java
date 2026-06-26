@@ -12,7 +12,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -88,10 +88,16 @@ public final class UiDialogs {
      * @return 非空输入，取消或空白返回 empty
      */
     public static Optional<String> promptText(String titleKey, String promptKey, String initial) {
-        TextInputDialog dialog = new TextInputDialog(initial == null ? "" : initial);
+        Dialog<String> dialog = new Dialog<>();
         dialog.setTitle(I18n.t(titleKey));
-        dialog.setHeaderText(null);
-        dialog.setContentText(I18n.t(promptKey));
+        ButtonType ok = okButton();
+        dialog.getDialogPane().getButtonTypes().addAll(ok, cancelButton());
+
+        TextField field = new TextField(initial == null ? "" : initial);
+        VBox box = new VBox(8, new Label(I18n.t(promptKey)), field);
+        box.setPadding(new Insets(12));
+        dialog.getDialogPane().setContent(box);
+        dialog.setResultConverter(bt -> bt == ok ? field.getText() : null);
         return dialog.showAndWait().map(String::trim).filter(s -> !s.isEmpty());
     }
 
