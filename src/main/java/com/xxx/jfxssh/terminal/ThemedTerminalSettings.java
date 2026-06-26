@@ -51,4 +51,11 @@ public final class ThemedTerminalSettings extends DefaultSettingsProvider {
         // 限制回滚缓冲行数，避免大量输出占用过多内存
         return 2000;
     }
+
+    @Override
+    public int maxRefreshRate() {
+        // 降低重绘频率（默认 50fps）：减少 SwingNode 重绘 + Java2D 原生纹理上传，
+        // 缓解长文本/高吞吐输出时的堆外内存增长
+        return 30;
+    }
 }

@@ -14,5 +14,6 @@ if [ -n "$JAVA_HOME" ]; then
 fi
 
 exec "$JAVA" -Xmx512m -XX:MaxDirectMemorySize=128m \
+  -Djdk.nio.maxCachedBufferSize=262144 \
   -XX:+UseStringDeduplication -XX:G1PeriodicGCInterval=10000 \
   --add-modules javafx.controls,javafx.swing -jar jfxssh.jar

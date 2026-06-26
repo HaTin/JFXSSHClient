@@ -49,18 +49,20 @@ java -version                    # 应显示 21，且为 Zulu/Liberica
 ```bash
 export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
 java -Xmx512m -XX:MaxDirectMemorySize=128m \
+  -Djdk.nio.maxCachedBufferSize=262144 \
   -XX:+UseStringDeduplication -XX:G1PeriodicGCInterval=10000 \
   --add-modules javafx.controls,javafx.swing -jar jfxssh.jar
 ```
 
 > 内存相关参数（**务必带上，否则默认最大堆是物理内存的 1/4，RSS 会很高**）：
 > - `-Xmx512m` 限制 Java 堆；
-> - `-XX:MaxDirectMemorySize=128m` 限制 NIO 直接内存（SSH 通道用，堆外，不限会涨）；
-> - `-XX:G1PeriodicGCInterval=10000` 每 10s 空闲 GC，回收并把内存还给系统（用完会回落）；
+> - `-XX:MaxDirectMemorySize=128m` 限制 NIO 直接内存（SSH 通道用，堆外）；
+> - `-Djdk.nio.maxCachedBufferSize=262144` **限制 JDK NIO 每线程缓存的临时直接内存**
+>   （高吞吐输出时这个线程本地缓存会涨且不释放，是堆外增长的主因之一）；
+> - `-XX:G1PeriodicGCInterval=10000` 每 10s 空闲 GC，回收并把内存还给系统；
 > - `-XX:+UseStringDeduplication` 字符串去重。
 >
-> 直接 `java -jar jfxssh.jar`（不带参数）会用默认大堆 → RSS 可能上 GB。请用 `run-mac.command`
-> 或带上以上参数。开很多标签 OOM 时可把 `-Xmx` 调大（如 768m）。
+> 直接 `java -jar jfxssh.jar`（不带参数）会用默认大堆 → RSS 可能上 GB。
 
 方式 B（双击）：在 Finder 双击 `run-mac.command`。
 - 首次可能被 Gatekeeper 拦：右键 → 打开，或在「系统设置 → 隐私与安全性」里允许。

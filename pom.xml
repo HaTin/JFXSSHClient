@@ -131,6 +131,7 @@
                     <arguments>
                         <argument>-Xmx512m</argument>
                         <argument>-XX:MaxDirectMemorySize=128m</argument>
+                        <argument>-Djdk.nio.maxCachedBufferSize=262144</argument>
                         <argument>-XX:+UseStringDeduplication</argument>
                         <argument>-XX:G1PeriodicGCInterval=10000</argument>
                         <argument>--add-modules</argument>
