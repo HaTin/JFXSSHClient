@@ -61,6 +61,7 @@
   "tree.menu.rename_group": "重命名分组",
   "tree.menu.delete_group": "删除分组",
   "tree.menu.connect": "连接",
+  "tree.menu.sftp": "SFTP",
   "tree.menu.edit": "编辑",
   "tree.menu.duplicate": "复制",
   "tree.menu.delete": "删除",
@@ -146,5 +147,25 @@
 
   "msg.connect.success": "已成功连接到 {0}。",
   "msg.connect.fail": "连接 {0} 失败。",
+
+  "sftp.title": "{0} — SFTP",
+  "sftp.button.up": "上级",
+  "sftp.button.refresh": "刷新",
+  "sftp.column.name": "名称",
+  "sftp.column.size": "大小",
+  "sftp.column.type": "类型",
+  "sftp.column.modified": "修改时间",
+  "sftp.type.directory": "文件夹",
+  "sftp.type.file": "文件",
+  "sftp.type.symlink": "符号链接",
+  "sftp.status.loading": "加载中...",
+  "sftp.status.items": "{0} 项",
+  "sftp.status.load_fail": "无法打开 {0}",
+  "sftp.status.downloading": "正在下载 {0}...",
+  "sftp.status.download_done": "已下载 {0}",
+  "dialog.sftp.download.title": "下载文件",
+  "msg.sftp.connect.fail": "打开 SFTP 失败：{0}。",
+  "msg.sftp.download.fail": "下载 {0} 失败。",
+
   "common.error": "错误"
 }

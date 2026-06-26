@@ -31,6 +31,14 @@ public interface SshSession extends AutoCloseable {
     SshShell openShell(int columns, int rows);
 
     /**
+     * 基于本会话打开一个 SFTP 客户端。
+     *
+     * @return SFTP 会话
+     * @throws SshConnectException 打开 SFTP 子系统失败时抛出
+     */
+    SftpSession openSftp();
+
+    /**
      * 关闭连接。
      */
     @Override

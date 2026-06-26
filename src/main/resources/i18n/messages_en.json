@@ -61,6 +61,7 @@
   "tree.menu.rename_group": "Rename Group",
   "tree.menu.delete_group": "Delete Group",
   "tree.menu.connect": "Connect",
+  "tree.menu.sftp": "SFTP",
   "tree.menu.edit": "Edit",
   "tree.menu.duplicate": "Duplicate",
   "tree.menu.delete": "Delete",
@@ -146,5 +147,25 @@
 
   "msg.connect.success": "Connected successfully to {0}.",
   "msg.connect.fail": "Failed to connect to {0}.",
+
+  "sftp.title": "{0} — SFTP",
+  "sftp.button.up": "Up",
+  "sftp.button.refresh": "Refresh",
+  "sftp.column.name": "Name",
+  "sftp.column.size": "Size",
+  "sftp.column.type": "Type",
+  "sftp.column.modified": "Modified",
+  "sftp.type.directory": "Directory",
+  "sftp.type.file": "File",
+  "sftp.type.symlink": "Symlink",
+  "sftp.status.loading": "Loading...",
+  "sftp.status.items": "{0} items",
+  "sftp.status.load_fail": "Failed to open {0}",
+  "sftp.status.downloading": "Downloading {0}...",
+  "sftp.status.download_done": "Downloaded {0}",
+  "dialog.sftp.download.title": "Download File",
+  "msg.sftp.connect.fail": "Failed to open SFTP on {0}.",
+  "msg.sftp.download.fail": "Failed to download {0}.",
+
   "common.error": "Error"
 }

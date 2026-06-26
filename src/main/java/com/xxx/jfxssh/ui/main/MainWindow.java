@@ -10,6 +10,7 @@ import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.dialog.SettingsDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
+import com.xxx.jfxssh.ui.sftp.SftpBrowserLauncher;
 import com.xxx.jfxssh.ui.status.StatusBar;
 import com.xxx.jfxssh.ui.terminal.TerminalTabsPane;
 import com.xxx.jfxssh.ui.theme.ThemeManager;
@@ -39,6 +40,7 @@ public final class MainWindow {
     private final TerminalTabsPane terminalTabs;
     private final ConnectionTreeView connectionTree;
     private final ConnectionPortService portService;
+    private final SftpBrowserLauncher sftpLauncher;
     private final BorderPane root = new BorderPane();
 
     private MenuItem lightThemeItem;
@@ -63,8 +65,11 @@ public final class MainWindow {
                       CredentialVault vault) {
         this.config = config;
         this.terminalTabs = new TerminalTabsPane(sshService, config);
+        this.sftpLauncher = new SftpBrowserLauncher(sshService,
+                () -> root.getScene() == null ? null : root.getScene().getWindow());
         this.connectionTree = new ConnectionTreeView(
-                connectionService, groupService, terminalTabs::openTerminal, vault, config);
+                connectionService, groupService, terminalTabs::openTerminal,
+                sftpLauncher, vault, config);
         this.portService = new ConnectionPortService(connectionService, groupService);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
@@ -83,6 +88,7 @@ public final class MainWindow {
      */
     public void shutdown() {
         terminalTabs.closeAll();
+        sftpLauncher.closeAll();
     }
 
     /**
@@ -139,7 +145,7 @@ public final class MainWindow {
         // 未上线功能：V1 置灰（见 UI_DESIGN.md V1 菜单可见性）
         Menu tools = menu("menu.tools");
         tools.getItems().addAll(
-                disabled(item("menu.tools.sftp")),
+                item("menu.tools.sftp", connectionTree::openSftpSelected),
                 disabled(item("menu.tools.port_forward")),
                 disabled(item("menu.tools.plugin_manager")));
 

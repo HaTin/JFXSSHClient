@@ -84,6 +84,13 @@
             <version>${sshd.version}</version>
         </dependency>
 
+        <!-- SFTP: Apache Mina SSHD SFTP 客户端（文件浏览/下载） -->
+        <dependency>
+            <groupId>org.apache.sshd</groupId>
+            <artifactId>sshd-sftp</artifactId>
+            <version>${sshd.version}</version>
+        </dependency>
+
         <!-- Terminal: JediTerm（终端内核 core + Swing 控件 ui，经 SwingNode 嵌入） -->
         <dependency>
             <groupId>org.jetbrains.jediterm</groupId>

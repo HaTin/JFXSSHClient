@@ -2,6 +2,8 @@ package com.xxx.jfxssh.ssh;
 
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +66,17 @@ final class MinaSshSession implements SshSession {
             return new MinaSshShell(channel);
         } catch (IOException e) {
             throw new SshConnectException("Failed to open shell on " + host + ":" + port, e);
+        }
+    }
+
+    @Override
+    public SftpSession openSftp() {
+        try {
+            SftpClient sftp = SftpClientFactory.instance().createSftpClient(session);
+            log.info("SFTP opened: {}@{}:{}", username, host, port);
+            return new MinaSftpSession(sftp, host, port);
+        } catch (IOException e) {
+            throw new SshConnectException("Failed to open SFTP on " + host + ":" + port, e);
         }
     }
 

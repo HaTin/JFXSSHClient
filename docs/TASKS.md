@@ -184,9 +184,17 @@ DONE
 
 ---
 
-## 后续版本（产品需求 V2–V5，未启动）
+## 后续版本（产品需求 V2–V5）
 
-- **V2 SFTP**：本地/远程双栏文件管理（上传/下载/删除/重命名）；Tools → SFTP 菜单已置灰预留
+- **V2 SFTP**：进行中（首版已交付）。
+  - 首版（DONE）：独立窗口的 SFTP 文件浏览器，每连接一个 `Stage`；列出远程文件
+    （名称/大小/类型/修改时间，点列头排序、默认目录优先），地址栏 + 上级 + 刷新，
+    双击目录进入、双击文件下载到本地。SSH 层加 `SftpSession`/`MinaSftpSession` +
+    `SshSession.openSftp()`（Mina sshd-sftp）；UI 层 `ui/sftp`（SftpLauncher /
+    SftpBrowserLauncher / SftpBrowserWindow）；右键连接 → SFTP、Tools → SFTP（已启用）。
+    单线程执行器串行化 SFTP 调用，关窗释放 SFTP+SSH。测试：EmbeddedSshServer 加 SFTP
+    子系统 + 虚拟根，MinaSftpSessionTest（列目录 + 下载字节）。
+  - 待办：上传、删除、重命名、新建目录、下载进度、本地/远程双栏。
 - **V3 Port Forward**：端口转发表格管理；Tools → Port Forward 菜单已置灰预留
 - **V4 Docker**：容器列表 / 详情 / 日志
 - **V5 AI 助手**：右侧可折叠聊天面板
