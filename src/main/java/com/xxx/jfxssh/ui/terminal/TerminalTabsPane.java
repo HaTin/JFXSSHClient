@@ -8,6 +8,7 @@ import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.ssh.SshShell;
 import com.xxx.jfxssh.storage.entity.Connection;
+import com.xxx.jfxssh.terminal.AwtEventGuard;
 import com.xxx.jfxssh.terminal.SshTtyConnector;
 import com.xxx.jfxssh.terminal.TerminalFontModel;
 import com.xxx.jfxssh.terminal.JfxTermWidget;
@@ -106,6 +107,7 @@ public final class TerminalTabsPane {
         root.setMinWidth(0);
 
         SwingUtilities.invokeLater(() -> {
+            AwtEventGuard.install();
             JPanel welcome = new JPanel(new BorderLayout());
             welcome.add(new JLabel(I18n.t("tab.no_session"), SwingConstants.CENTER), BorderLayout.CENTER);
             welcomePanel = welcome;
