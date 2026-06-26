@@ -2,7 +2,8 @@
 
 状态：
 
-开发中
+V1 全部任务（0–8）已完成；进入 V1.1 增强与维护阶段。后续大版本（V2 SFTP /
+V3 Port Forward / V4 Docker / V5 AI）尚未启动。
 
 ---
 
@@ -74,7 +75,9 @@ DONE（JediTerm 终端经 SwingNode 嵌入；SSH shell channel；一连接一 Ta
 
 状态：
 
-TODO
+DONE（AppConfig 基于 properties 文件 load/save/set，语言/主题/字体/字号/回滚行数/
+KeepAlive/Timeout/主机密钥校验等设置项均落盘并启动恢复；SettingsService 负责加密相关
+KDF 参数与凭据存于 settings 表）
 
 ---
 
@@ -124,6 +127,7 @@ DONE
 - 任务2.1：分组管理（Group 后端 + 连接树 UI 接入）
 - 任务3：SSH 连接管理（Mina SSHD，密码 + 公钥）
 - 任务4：多标签页 + 终端（JediTerm + SSH shell）
+- 任务5：配置持久化（AppConfig properties + settings 表）
 - 任务6：主题切换（Light / Dark 实时）
 - 任务7：凭据加密（主密码 + PBKDF2 + AES-256-GCM）
 - 任务8：多语言（i18n）
@@ -159,6 +163,31 @@ DONE
 - 导入 / 导出连接：File → Export/Import，JSON 格式（连接 + 分组结构）；**不导出密码**
   （密文绑定本机主密码、换机无法解密，明文不安全；导出前弹确认说明）；导入按
   名称+父分组 / 名称|主机|端口|用户名 去重合并，幂等
+- 连接成功后提示保存凭据：当凭据为本次手动输入（导入的无密码连接 / 临时改用其它认证），
+  连接成功后弹窗询问是否保存到该连接（密码经主密码加密落库，私钥保存路径），下次免输；
+  仅在连接成功时提示，且仅对手动输入的凭据（已存并解密成功的不重复提示）
 - 菜单接线：Connection 菜单（Connect 连接选中项 / Disconnect / Reconnect / Close
   Session 作用于活动终端）；View → Reset Layout 复位分隔条；Help → About（简介 +
   版本 + 开发者 @HaTin）/ Documentation
+
+---
+
+## 已知限制 / 待办
+
+- **私钥口令（passphrase）不持久化**：connections 表与 Connection 实体仅有
+  password_enc / private_key_path，无 passphrase 字段。带口令保护的私钥即便"保存凭据"
+  也只存路径，重连时 buildConfig 不会再提示输入口令 → 认证会失败。与 DATABASE.md
+  "私钥口令采用同一方案存储"不符。修复需：schema 加 passphrase_enc 列（v3 迁移）+
+  实体/Repository 读写 + 保存时加密 + buildConfig 解密回填，解密失败再补输。
+- **光标样式设置**：设置窗口 Terminal 页已有下拉但**置灰**，JediTerm 暂无对应设置钩子，预留。
+- **一次性命令执行 execute()**：API.md 标记为 V1 可选，当前未实现（仅交互式 openShell）。
+
+---
+
+## 后续版本（产品需求 V2–V5，未启动）
+
+- **V2 SFTP**：本地/远程双栏文件管理（上传/下载/删除/重命名）；Tools → SFTP 菜单已置灰预留
+- **V3 Port Forward**：端口转发表格管理；Tools → Port Forward 菜单已置灰预留
+- **V4 Docker**：容器列表 / 详情 / 日志
+- **V5 AI 助手**：右侧可折叠聊天面板
+- 插件系统（Plugin Manager）：产品需求 V1–V5 之外，仅 UI 预留，暂不实现
