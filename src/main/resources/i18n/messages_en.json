@@ -227,6 +227,7 @@
   "forward.hint.local": "Local: access target through this SSH server. Example: bind 127.0.0.1:3307 → target 192.168.1.50:3306.",
   "forward.hint.remote": "Remote: expose a local port on the SSH server. Example: bind 0.0.0.0:8080 → target 127.0.0.1:8080.",
   "forward.hint.dynamic": "Dynamic: local SOCKS5 proxy. Set browser proxy to bindHost:bindPort to route traffic via the SSH server.",
+  "forward.error.reconnect_failed": "Reconnect failed: {0}",
   "msg.forward.connect.fail": "Failed to connect to {0} for port forwarding.",
 
   "common.error": "Error"

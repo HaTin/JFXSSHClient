@@ -3,7 +3,10 @@ package com.xxx.jfxssh.ui.forward;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.service.PortForwardService;
 import com.xxx.jfxssh.ssh.PortForward;
+import com.xxx.jfxssh.ssh.PortForwardException;
 import com.xxx.jfxssh.ssh.PortForwardSpec;
+import com.xxx.jfxssh.ssh.SshConnectionConfig;
+import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.storage.entity.PortForwardRule;
@@ -62,7 +65,9 @@ public final class PortForwardWindow {
 
     private final Stage stage;
     private final Connection connection;
-    private final SshSession ssh;
+    private SshSession ssh;
+    private final SshService sshService;
+    private final SshConnectionConfig sshConfig;
     private final PortForwardService portForwardService;
     private final ExecutorService executor;
     private final Consumer<PortForwardWindow> onClose;
@@ -79,6 +84,8 @@ public final class PortForwardWindow {
      * @param title              连接显示名（窗口标题）
      * @param connection         所属连接（用于持久化规则）
      * @param ssh                依附的 SSH 会话（窗口关闭时一并关闭）
+     * @param sshService         SSH 服务（forwarder 损坏时用于重新连接）
+     * @param sshConfig          SSH 连接配置（重新连接用）
      * @param portForwardService 端口转发规则服务
      * @param owner              父窗口（可空）
      * @param onClose            关闭回调（从启动器注册表移除）
@@ -86,11 +93,15 @@ public final class PortForwardWindow {
     public PortForwardWindow(String title,
                              Connection connection,
                              SshSession ssh,
+                             SshService sshService,
+                             SshConnectionConfig sshConfig,
                              PortForwardService portForwardService,
                              Window owner,
                              Consumer<PortForwardWindow> onClose) {
         this.connection = connection;
         this.ssh = ssh;
+        this.sshService = sshService;
+        this.sshConfig = sshConfig;
         this.portForwardService = portForwardService;
         this.onClose = onClose;
         this.executor = Executors.newSingleThreadExecutor(r -> {
@@ -134,7 +145,8 @@ public final class PortForwardWindow {
             }
         }
         executor.shutdownNow();
-        Thread closer = new Thread(ssh::close, "forward-close");
+        SshSession sessionToClose = ssh;
+        Thread closer = new Thread(sessionToClose::close, "forward-close");
         closer.setDaemon(true);
         closer.start();
         if (onClose != null) {
@@ -292,33 +304,66 @@ public final class PortForwardWindow {
         row.stopPending = false;
         table.refresh();
         updateButtonStates();
-        executor.submit(() -> {
-            try {
-                PortForward handle = ssh.openForward(row.spec);
-                Platform.runLater(() -> {
-                    if (row.stopPending) {
-                        // 启动过程中用户已要求停止/移除
-                        row.status = Status.STOPPED;
-                        row.detail = "";
-                        stopInBackground(handle, row.spec.name());
-                    } else {
-                        row.handle = handle;
-                        row.status = Status.RUNNING;
-                        row.detail = String.valueOf(handle.boundPort());
-                    }
-                    table.refresh();
-                    updateButtonStates();
-                });
-            } catch (RuntimeException ex) {
-                log.warn("Start forward failed for {}: {}", row.spec.name(), ex.getMessage());
-                Platform.runLater(() -> {
-                    row.status = Status.ERROR;
-                    row.detail = ex.getMessage();
-                    table.refresh();
-                    updateButtonStates();
-                });
+        executor.submit(() -> tryStartForward(row, 0));
+    }
+
+    /**
+     * 尝试启动一条转发；若检测到 Mina forwarder 已损坏（如绑定特权端口失败后），
+     * 先重新建立 SSH 会话再重试一次。
+     */
+    private void tryStartForward(Row row, int retryCount) {
+        try {
+            PortForward handle = ssh.openForward(row.spec);
+            Platform.runLater(() -> {
+                if (row.stopPending) {
+                    // 启动过程中用户已要求停止/移除
+                    row.status = Status.STOPPED;
+                    row.detail = "";
+                    stopInBackground(handle, row.spec.name());
+                } else {
+                    row.handle = handle;
+                    row.status = Status.RUNNING;
+                    row.detail = String.valueOf(handle.boundPort());
+                }
+                table.refresh();
+                updateButtonStates();
+            });
+        } catch (RuntimeException ex) {
+            log.warn("Start forward failed for {}: {}", row.spec.name(), ex.getMessage());
+            if (retryCount == 0 && isForwarderClosed(ex)) {
+                log.info("Forwarder closed for {} on {}, attempting reconnect",
+                        row.spec.name(), connection.getHost());
+                try {
+                    SshSession newSession = sshService.connect(sshConfig);
+                    SshSession oldSession = ssh;
+                    ssh = newSession;
+                    Thread closer = new Thread(oldSession::close, "forward-reconnect-close");
+                    closer.setDaemon(true);
+                    closer.start();
+                    tryStartForward(row, retryCount + 1);
+                } catch (RuntimeException reconnectEx) {
+                    log.warn("Reconnect failed for {}: {}", row.spec.name(), reconnectEx.getMessage());
+                    Platform.runLater(() -> {
+                        row.status = Status.ERROR;
+                        row.detail = I18n.t("forward.error.reconnect_failed", reconnectEx.getMessage());
+                        table.refresh();
+                        updateButtonStates();
+                    });
+                }
+                return;
             }
-        });
+            Platform.runLater(() -> {
+                row.status = Status.ERROR;
+                row.detail = ex.getMessage();
+                table.refresh();
+                updateButtonStates();
+            });
+        }
+    }
+
+    private boolean isForwarderClosed(RuntimeException ex) {
+        String msg = ex.getMessage();
+        return msg != null && msg.contains("TcpipForwarder is closed or closing");
     }
 
     /** 在后台线程关闭转发，避免阻塞 FX 线程。 */

@@ -54,7 +54,7 @@ public final class PortForwardWindowLauncher implements PortForwardLauncher {
                 Platform.runLater(() -> {
                     Window owner = ownerSupplier == null ? null : ownerSupplier.get();
                     PortForwardWindow window =
-                            new PortForwardWindow(name, connection, ssh, portForwardService, owner, openWindows::remove);
+                            new PortForwardWindow(name, connection, ssh, sshService, config, portForwardService, owner, openWindows::remove);
                     openWindows.add(window);
                     window.show();
                 });
