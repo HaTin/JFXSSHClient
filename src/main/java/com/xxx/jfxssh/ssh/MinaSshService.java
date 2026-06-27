@@ -7,6 +7,7 @@ import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.core.CoreModuleProperties;
+import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,7 @@ public final class MinaSshService implements SshService, AutoCloseable {
     public MinaSshService(ServerKeyVerifier serverKeyVerifier) {
         this.client = SshClient.setUpDefaultClient();
         this.client.setServerKeyVerifier(serverKeyVerifier);
+        this.client.setForwardingFilter(AcceptAllForwardingFilter.INSTANCE);
     }
 
     @Override

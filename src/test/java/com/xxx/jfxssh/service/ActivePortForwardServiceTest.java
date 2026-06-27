@@ -16,10 +16,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -92,6 +99,54 @@ class ActivePortForwardServiceTest {
 
         service.stopForward(connection.getId(), "dynamic");
         assertTrue(service.getActiveForwards(connection.getId()).isEmpty());
+    }
+
+    @Test
+    void localForwardTunnelsTrafficToBackend() throws Exception {
+        try (ServerSocket backend = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))) {
+            int backendPort = backend.getLocalPort();
+            Thread echo = new Thread(() -> {
+                try (Socket s = backend.accept();
+                     InputStream in = s.getInputStream();
+                     OutputStream out = s.getOutputStream()) {
+                    byte[] buf = new byte[1024];
+                    int n;
+                    while ((n = in.read(buf)) != -1) {
+                        out.write(buf, 0, n);
+                        out.flush();
+                    }
+                } catch (IOException ignore) {
+                }
+            }, "echo-backend");
+            echo.setDaemon(true);
+            echo.start();
+
+            PortForwardSpec spec = new PortForwardSpec(
+                    "local", PortForwardSpec.Type.LOCAL, "127.0.0.1", 0,
+                    "127.0.0.1", backendPort);
+
+            int boundPort = service.startForward(connection, config, spec);
+            assertTrue(boundPort > 0);
+
+            byte[] payload = "hello-active-forward".getBytes(StandardCharsets.UTF_8);
+            try (Socket client = new Socket("127.0.0.1", boundPort)) {
+                client.getOutputStream().write(payload);
+                client.getOutputStream().flush();
+                byte[] echoed = new byte[payload.length];
+                int read = 0;
+                while (read < echoed.length) {
+                    int n = client.getInputStream().read(echoed, read, echoed.length - read);
+                    if (n < 0) {
+                        break;
+                    }
+                    read += n;
+                }
+                assertArrayEquals(payload, echoed);
+            }
+
+            service.stopForward(connection.getId(), "local");
+            assertTrue(service.getActiveForwards(connection.getId()).isEmpty());
+        }
     }
 
     @Test

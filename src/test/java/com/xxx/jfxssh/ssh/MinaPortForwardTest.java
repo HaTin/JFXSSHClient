@@ -5,14 +5,18 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -113,6 +117,70 @@ class MinaPortForwardTest {
             assertTrue(fwd.boundPort() > 0);
             fwd.close();
             assertFalse(fwd.isOpen());
+        }
+    }
+
+    @Test
+    void remoteForwardExposesLocalHttpServer() throws Exception {
+        String body = "<html><body>hello-remote</body></html>";
+        String response = "HTTP/1.1 200 OK\r\n"
+                + "Content-Type: text/html\r\n"
+                + "Content-Length: " + body.length() + "\r\n"
+                + "Connection: close\r\n"
+                + "\r\n"
+                + body;
+
+        try (ServerSocket backend = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))) {
+            int backendPort = backend.getLocalPort();
+            Thread http = new Thread(() -> {
+                try (Socket s = backend.accept();
+                     InputStream in = s.getInputStream();
+                     OutputStream out = s.getOutputStream()) {
+                    // 消费完整 HTTP 请求头
+                    ByteArrayOutputStream header = new ByteArrayOutputStream();
+                    byte[] buf = new byte[1024];
+                    int n;
+                    while ((n = in.read(buf)) != -1) {
+                        header.write(buf, 0, n);
+                        if (header.toString(StandardCharsets.UTF_8).contains("\r\n\r\n")) {
+                            break;
+                        }
+                    }
+                    out.write(response.getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                } catch (IOException ignore) {
+                }
+            }, "mini-http-server");
+            http.setDaemon(true);
+            http.start();
+
+            try (SshSession ssh = connect()) {
+                PortForward fwd = ssh.openForward(new PortForwardSpec(
+                        "test-remote", PortForwardSpec.Type.REMOTE, "127.0.0.1", 18009,
+                        "127.0.0.1", backendPort));
+                assertTrue(fwd.isOpen());
+                assertEquals(18009, fwd.boundPort());
+
+                int remotePort = fwd.boundPort();
+                try (Socket client = new Socket("127.0.0.1", remotePort);
+                     OutputStream out = client.getOutputStream();
+                     InputStream in = client.getInputStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                    out.write("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+
+                    StringBuilder received = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        received.append(line).append("\n");
+                    }
+                    assertTrue(received.toString().contains("hello-remote"),
+                            "Response should contain body; got: " + received);
+                }
+
+                fwd.close();
+                assertFalse(fwd.isOpen());
+            }
         }
     }
 }
