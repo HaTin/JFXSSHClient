@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS settings (
     update_time TEXT
 );
 
+CREATE TABLE IF NOT EXISTS port_forwards (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    connection_id INTEGER NOT NULL,
+    name          TEXT    NOT NULL,
+    type          TEXT    NOT NULL,            -- LOCAL / REMOTE / DYNAMIC
+    bind_host     TEXT    NOT NULL,
+    bind_port     INTEGER NOT NULL,
+    dest_host     TEXT,
+    dest_port     INTEGER,
+    create_time   TEXT,
+    update_time   TEXT,
+    FOREIGN KEY (connection_id) REFERENCES connections (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS schema_version (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     version      INTEGER NOT NULL,

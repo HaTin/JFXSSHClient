@@ -1,15 +1,17 @@
 package com.xxx.jfxssh.ui.forward;
 
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.PortForwardService;
 import com.xxx.jfxssh.ssh.PortForward;
 import com.xxx.jfxssh.ssh.PortForwardSpec;
 import com.xxx.jfxssh.ssh.SshSession;
+import com.xxx.jfxssh.storage.entity.Connection;
+import com.xxx.jfxssh.storage.entity.PortForwardRule;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.SelectionMode;
@@ -32,8 +34,8 @@ import java.util.function.Consumer;
 /**
  * 端口转发管理窗口（每个连接一个，独立窗口）。
  *
- * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 移除）。
- * 规则仅内存保存，关窗即丢。启停经单线程执行器在后台执行，结果回 FX 线程刷新表格。
+ * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 移除 / 全部启动）。
+ * 规则持久化到 SQLite，打开窗口时只加载不自动启动。启停经单线程执行器在后台执行，结果回 FX 线程刷新表格。
  * 关窗时停止所有转发并关闭底层 SSH 会话。</p>
  */
 public final class PortForwardWindow {
@@ -45,19 +47,23 @@ public final class PortForwardWindow {
 
     /** 表格行模型（可变，状态变化后调用 {@code table.refresh()}）。 */
     private static final class Row {
+        private final Long ruleId;
         private final PortForwardSpec spec;
         private PortForward handle;
         private Status status = Status.STOPPED;
         private String detail = "";
         private volatile boolean stopPending;
 
-        Row(PortForwardSpec spec) {
+        Row(Long ruleId, PortForwardSpec spec) {
+            this.ruleId = ruleId;
             this.spec = spec;
         }
     }
 
     private final Stage stage;
+    private final Connection connection;
     private final SshSession ssh;
+    private final PortForwardService portForwardService;
     private final ExecutorService executor;
     private final Consumer<PortForwardWindow> onClose;
     private final AtomicBoolean closing = new AtomicBoolean(false);
@@ -65,17 +71,27 @@ public final class PortForwardWindow {
     private final TableView<Row> table = new TableView<>();
     private final ObservableList<Row> rows = FXCollections.observableArrayList();
     private Button startButton;
+    private Button startAllButton;
     private Button stopButton;
     private Button removeButton;
 
     /**
-     * @param title   连接显示名（窗口标题）
-     * @param ssh     依附的 SSH 会话（窗口关闭时一并关闭）
-     * @param owner   父窗口（可空）
-     * @param onClose 关闭回调（从启动器注册表移除）
+     * @param title              连接显示名（窗口标题）
+     * @param connection         所属连接（用于持久化规则）
+     * @param ssh                依附的 SSH 会话（窗口关闭时一并关闭）
+     * @param portForwardService 端口转发规则服务
+     * @param owner              父窗口（可空）
+     * @param onClose            关闭回调（从启动器注册表移除）
      */
-    public PortForwardWindow(String title, SshSession ssh, Window owner, Consumer<PortForwardWindow> onClose) {
+    public PortForwardWindow(String title,
+                             Connection connection,
+                             SshSession ssh,
+                             PortForwardService portForwardService,
+                             Window owner,
+                             Consumer<PortForwardWindow> onClose) {
+        this.connection = connection;
         this.ssh = ssh;
+        this.portForwardService = portForwardService;
         this.onClose = onClose;
         this.executor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "forward-ops-" + title);
@@ -92,8 +108,9 @@ public final class PortForwardWindow {
         stage.setOnCloseRequest(e -> close());
     }
 
-    /** 显示窗口。 */
+    /** 显示窗口并加载已保存的规则（不自动启动）。 */
     public void show() {
+        loadRules();
         stage.show();
     }
 
@@ -137,7 +154,9 @@ public final class PortForwardWindow {
         stopButton.setOnAction(e -> stopSelected());
         removeButton = new Button(I18n.t("forward.button.remove"));
         removeButton.setOnAction(e -> removeSelected());
-        ToolBar toolBar = new ToolBar(add, startButton, stopButton, removeButton);
+        startAllButton = new Button(I18n.t("forward.button.start_all"));
+        startAllButton.setOnAction(e -> startAll());
+        ToolBar toolBar = new ToolBar(add, startButton, stopButton, removeButton, startAllButton);
 
         buildTable();
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonStates());
@@ -158,9 +177,11 @@ public final class PortForwardWindow {
         boolean canStart = selected != null
                 && selected.status != Status.RUNNING
                 && selected.status != Status.STARTING;
+        boolean canStartAny = rows.stream().anyMatch(r -> r.status != Status.RUNNING && r.status != Status.STARTING);
         startButton.setDisable(!canStart);
         stopButton.setDisable(!running);
         removeButton.setDisable(selected == null);
+        startAllButton.setDisable(!canStartAny);
     }
 
     private void buildTable() {
@@ -194,14 +215,32 @@ public final class PortForwardWindow {
         table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
     }
 
+    /** 从数据库加载当前连接的转发规则，状态设为 STOPPED。 */
+    private void loadRules() {
+        rows.clear();
+        for (PortForwardRule rule : portForwardService.findByConnection(connection.getId())) {
+            PortForwardSpec spec = new PortForwardSpec(
+                    rule.getName(),
+                    rule.getType(),
+                    rule.getBindHost(),
+                    rule.getBindPort(),
+                    rule.getDestHost() == null ? "" : rule.getDestHost(),
+                    rule.getDestPort());
+            rows.add(new Row(rule.getId(), spec));
+        }
+        table.refresh();
+        updateButtonStates();
+    }
+
     private void addRule() {
         Optional<PortForwardSpec> spec = new PortForwardDialog().showAndWait();
         if (spec.isEmpty()) {
             return;
         }
-        Row row = new Row(spec.get());
-        rows.add(row);
-        startRow(row); // 添加即尝试启动
+        PortForwardRule rule = toEntity(spec.get());
+        PortForwardRule saved = portForwardService.save(rule);
+        rows.add(new Row(saved.getId(), spec.get()));
+        table.refresh();
         updateButtonStates();
     }
 
@@ -209,6 +248,14 @@ public final class PortForwardWindow {
         Row row = table.getSelectionModel().getSelectedItem();
         if (row != null && row.status != Status.RUNNING && row.status != Status.STARTING) {
             startRow(row);
+        }
+    }
+
+    private void startAll() {
+        for (Row row : rows) {
+            if (row.status != Status.RUNNING && row.status != Status.STARTING) {
+                startRow(row);
+            }
         }
     }
 
@@ -224,6 +271,9 @@ public final class PortForwardWindow {
         if (row == null) {
             return;
         }
+        if (row.ruleId != null) {
+            portForwardService.delete(row.ruleId);
+        }
         PortForward handle = row.handle;
         row.handle = null;
         if (handle != null) {
@@ -233,6 +283,7 @@ public final class PortForwardWindow {
             row.stopPending = true;
         }
         rows.remove(row);
+        updateButtonStates();
     }
 
     private void startRow(Row row) {
@@ -296,6 +347,20 @@ public final class PortForwardWindow {
             // 正在启动中就被停止：让 startRow 完成后立即关闭
             row.stopPending = true;
         }
+    }
+
+    private PortForwardRule toEntity(PortForwardSpec spec) {
+        PortForwardRule rule = new PortForwardRule();
+        rule.setConnectionId(connection.getId());
+        rule.setName(spec.name());
+        rule.setType(spec.type());
+        rule.setBindHost(spec.bindHost());
+        rule.setBindPort(spec.bindPort());
+        if (spec.type() != PortForwardSpec.Type.DYNAMIC) {
+            rule.setDestHost(spec.destHost());
+            rule.setDestPort(spec.destPort());
+        }
+        return rule;
     }
 
     private String bindText(Row row) {

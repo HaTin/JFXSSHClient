@@ -7,6 +7,7 @@ import com.xxx.jfxssh.service.ConnectionPortService;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
+import com.xxx.jfxssh.service.PortForwardService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.dialog.SettingsDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
@@ -58,18 +59,20 @@ public final class MainWindow {
      * @param connectionService 连接服务
      * @param groupService      分组服务
      * @param sshService        SSH 服务
+     * @param portForwardService 端口转发规则服务
      * @param vault             凭据保险库
      */
     public MainWindow(AppConfig config,
                       ConnectionService connectionService,
                       GroupService groupService,
                       SshService sshService,
+                      PortForwardService portForwardService,
                       CredentialVault vault) {
         this.config = config;
         this.terminalTabs = new TerminalTabsPane(sshService, config);
         this.sftpLauncher = new SftpBrowserLauncher(sshService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
-        this.portForwardLauncher = new PortForwardWindowLauncher(sshService,
+        this.portForwardLauncher = new PortForwardWindowLauncher(sshService, portForwardService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
         this.connectionTree = new ConnectionTreeView(
                 connectionService, groupService, terminalTabs::openTerminal,

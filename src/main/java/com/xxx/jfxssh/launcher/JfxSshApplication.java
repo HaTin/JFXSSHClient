@@ -9,6 +9,8 @@ import com.xxx.jfxssh.service.ConnectionServiceImpl;
 import com.xxx.jfxssh.service.CredentialVault;
 import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.service.GroupServiceImpl;
+import com.xxx.jfxssh.service.PortForwardService;
+import com.xxx.jfxssh.service.PortForwardServiceImpl;
 import com.xxx.jfxssh.service.SettingsHostKeyStore;
 import com.xxx.jfxssh.service.SettingsService;
 import com.xxx.jfxssh.service.SettingsServiceImpl;
@@ -17,6 +19,7 @@ import com.xxx.jfxssh.ssh.MinaSshService;
 import com.xxx.jfxssh.storage.Database;
 import com.xxx.jfxssh.storage.repository.ConnectionRepositoryImpl;
 import com.xxx.jfxssh.storage.repository.GroupRepositoryImpl;
+import com.xxx.jfxssh.storage.repository.PortForwardRepositoryImpl;
 import com.xxx.jfxssh.storage.repository.SettingsRepositoryImpl;
 import com.xxx.jfxssh.ui.dialog.FxHostKeyPrompt;
 import com.xxx.jfxssh.ui.main.MainWindow;
@@ -62,6 +65,8 @@ public final class JfxSshApplication extends Application {
                 new GroupServiceImpl(new GroupRepositoryImpl(database));
         SettingsService settingsService =
                 new SettingsServiceImpl(new SettingsRepositoryImpl(database));
+        PortForwardService portForwardService =
+                new PortForwardServiceImpl(new PortForwardRepositoryImpl(database));
         CredentialVault vault = new CredentialVault(settingsService);
         KnownHostsVerifier hostKeyVerifier = new KnownHostsVerifier(
                 new SettingsHostKeyStore(settingsService),
@@ -69,7 +74,7 @@ public final class JfxSshApplication extends Application {
                 () -> config.getBoolean(AppConfig.KEY_SSH_HOSTKEY_VERIFY, AppConfig.DEFAULT_SSH_HOSTKEY_VERIFY));
         sshService = new MinaSshService(hostKeyVerifier);
 
-        mainWindow = new MainWindow(config, connectionService, groupService, sshService, vault);
+        mainWindow = new MainWindow(config, connectionService, groupService, sshService, portForwardService, vault);
         Scene scene = new Scene(mainWindow.getRoot(),
                 Constants.DEFAULT_WINDOW_WIDTH, Constants.DEFAULT_WINDOW_HEIGHT);
 

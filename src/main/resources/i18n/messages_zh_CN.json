@@ -200,6 +200,7 @@
   "forward.button.start": "启动",
   "forward.button.stop": "停止",
   "forward.button.remove": "移除",
+  "forward.button.start_all": "全部启动",
   "forward.column.name": "名称",
   "forward.column.type": "类型",
   "forward.column.bind": "绑定",

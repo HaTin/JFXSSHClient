@@ -32,9 +32,13 @@ class DatabaseTest {
                     "SELECT COUNT(*) FROM pragma_table_info('connections') WHERE name = 'terminal_type'")) {
                 assertTrue(rs.next() && rs.getInt(1) == 1, "connections.terminal_type column should exist");
             }
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM pragma_table_info('port_forwards') WHERE name = 'connection_id'")) {
+                assertTrue(rs.next() && rs.getInt(1) == 1, "port_forwards table should exist");
+            }
             try (ResultSet rs = st.executeQuery("SELECT MAX(version) FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(2, rs.getInt(1));
+                assertEquals(3, rs.getInt(1));
             }
         }
     }

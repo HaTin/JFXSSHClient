@@ -4,6 +4,7 @@ import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ssh.SshSession;
+import com.xxx.jfxssh.service.PortForwardService;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
@@ -26,15 +27,20 @@ public final class PortForwardWindowLauncher implements PortForwardLauncher {
     private static final Logger log = LoggerFactory.getLogger(PortForwardWindowLauncher.class);
 
     private final SshService sshService;
+    private final PortForwardService portForwardService;
     private final Supplier<Window> ownerSupplier;
     private final Set<PortForwardWindow> openWindows = ConcurrentHashMap.newKeySet();
 
     /**
-     * @param sshService    SSH 服务
-     * @param ownerSupplier 主窗口提供者（构造期 Scene 尚未就绪，故延迟获取，可返回 null）
+     * @param sshService         SSH 服务
+     * @param portForwardService 端口转发规则服务
+     * @param ownerSupplier      主窗口提供者（构造期 Scene 尚未就绪，故延迟获取，可返回 null）
      */
-    public PortForwardWindowLauncher(SshService sshService, Supplier<Window> ownerSupplier) {
+    public PortForwardWindowLauncher(SshService sshService,
+                                     PortForwardService portForwardService,
+                                     Supplier<Window> ownerSupplier) {
         this.sshService = sshService;
+        this.portForwardService = portForwardService;
         this.ownerSupplier = ownerSupplier;
     }
 
@@ -48,7 +54,7 @@ public final class PortForwardWindowLauncher implements PortForwardLauncher {
                 Platform.runLater(() -> {
                     Window owner = ownerSupplier == null ? null : ownerSupplier.get();
                     PortForwardWindow window =
-                            new PortForwardWindow(name, ssh, owner, openWindows::remove);
+                            new PortForwardWindow(name, connection, ssh, portForwardService, owner, openWindows::remove);
                     openWindows.add(window);
                     window.show();
                 });

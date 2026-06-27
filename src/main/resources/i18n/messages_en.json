@@ -200,6 +200,7 @@
   "forward.button.start": "Start",
   "forward.button.stop": "Stop",
   "forward.button.remove": "Remove",
+  "forward.button.start_all": "Start All",
   "forward.column.name": "Name",
   "forward.column.type": "Type",
   "forward.column.bind": "Bind",
