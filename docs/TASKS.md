@@ -136,8 +136,9 @@ DONE
 
 ## 工程化
 
-- 单元测试：JUnit 5 + surefire，31 个用例（cipher / vault / settings / i18n /
-  connection / group + 级联 / ssh 集成 / tty-connector 断开重连），mvn test 全绿
+- 单元测试：JUnit 5 + surefire，51 个用例（cipher / vault / settings / i18n /
+  connection / group + 级联 / ssh 集成 / tty-connector 断开重连 / SFTP 浏览·传输·
+  取消·多通道·错误码），mvn test 全绿（其中权限错误用例在 root 环境自动跳过）
 
 ---
 
@@ -186,15 +187,24 @@ DONE
 
 ## 后续版本（产品需求 V2–V5）
 
-- **V2 SFTP**：进行中（双栏文件管理器已交付）。
-  - 首版（DONE）：独立窗口的 SFTP 文件浏览器，列出远程文件、排序、双击进入/下载。
-  - 双栏增强（DONE）：左本地 + 右远程双栏（`LocalPane`/`RemotePane`），中间上传 / 下载按钮，
-    底部共享进度条 + 状态栏。支持：上传（本地→远程）、下载（远程→本地）、新建文件夹、
-    重命名、删除（远程递归删除；本地用 java.nio），上传 / 下载进度条（按 1% 节流回 FX）。
-    SSH 层加 `SftpProgress` 及 `upload/download(带进度)/mkdir/rename/delete(递归)`。
-    远程操作经单线程执行器串行化，传输中禁用上传/下载按钮。
-    测试：MinaSftpSessionTest 覆盖 list/download/upload(进度)/mkdir+rename+delete。
-  - 待办：文件夹整体上传/下载、断点续传、传输队列/多并发、拖拽。
+- **V2 SFTP**：进行中（双栏文件管理器已交付，含并发传输与进度/取消）。
+  - 首版（DONE）：独立窗口的 SFTP 文件浏览器，列出远程文件、列排序、双击进入/下载。
+  - 双栏（DONE）：左本地（`LocalPane`，java.nio）+ 右远程（`RemotePane`）。**上传 / 下载放入
+    各栏右键菜单**（左栏「上传到远程」、右栏「下载到本地」），不再用中间独立按钮。
+    两栏均支持新建文件夹 / 重命名 / 删除（远程递归删除）。
+  - 传输（DONE）：**每个传输独立开一条 SFTP 通道、独立线程**——传输不阻塞浏览，且可
+    **并发多个**。底部为传输列表，每行显示进度条 + **百分比 + 已传/总 MB + 速度** + **取消按钮**。
+    取消 / 关窗中断会清理半成品（远程残file remove、本地残file delete）且不误报错误。
+  - 错误处理（DONE）：`SftpOperationException` 带 SFTP 状态码；`SftpErrors` 将其与本地
+    java.nio 异常翻译为具体原因（权限不足 / 不存在 / 已存在 / 目录非空 / 不支持），
+    失败弹「上传 X 失败：权限不足」并复位状态栏为「失败：X」。
+  - SSH 层：`SftpSession`/`MinaSftpSession` + `SshSession.openSftp()`（sshd-sftp）；
+    `SftpProgress` 进度回调、`upload/download(带进度+取消)/mkdir/rename/delete(递归)`。
+  - 接线：右键连接 → SFTP、Tools → SFTP（已启用）。
+  - 测试：MinaSftpSessionTest 覆盖 list / download / upload(进度) / 取消清理 /
+    多通道共存 / mkdir+rename+递归delete / 权限错误状态码（root 环境自动跳过）。
+  - 待办：**文件夹整体上传/下载**（当前选目录提示"请选择文件"）、**覆盖确认**（同名直接覆盖）、
+    **取消单个传输后目标栏不自动刷新**、断点续传、传输队列（并发数上限/暂停/重排）、拖拽。
 - **V3 Port Forward**：端口转发表格管理；Tools → Port Forward 菜单已置灰预留
 - **V4 Docker**：容器列表 / 详情 / 日志
 - **V5 AI 助手**：右侧可折叠聊天面板
