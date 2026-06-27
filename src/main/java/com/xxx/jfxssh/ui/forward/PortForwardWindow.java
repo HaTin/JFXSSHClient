@@ -49,6 +49,7 @@ public final class PortForwardWindow {
         private PortForward handle;
         private Status status = Status.STOPPED;
         private String detail = "";
+        private volatile boolean stopPending;
 
         Row(PortForwardSpec spec) {
             this.spec = spec;
@@ -63,6 +64,9 @@ public final class PortForwardWindow {
 
     private final TableView<Row> table = new TableView<>();
     private final ObservableList<Row> rows = FXCollections.observableArrayList();
+    private Button startButton;
+    private Button stopButton;
+    private Button removeButton;
 
     /**
      * @param title   连接显示名（窗口标题）
@@ -99,8 +103,17 @@ public final class PortForwardWindow {
             return;
         }
         for (Row row : rows) {
-            if (row.handle != null) {
-                row.handle.close();
+            PortForward handle = row.handle;
+            row.handle = null;
+            if (handle != null) {
+                try {
+                    handle.close();
+                } catch (RuntimeException e) {
+                    log.warn("Error stopping forward {} on window close: {}", row.spec.name(), e.getMessage());
+                }
+            } else {
+                // 启动中就被关闭窗口：让 startRow 完成后自行关闭
+                row.stopPending = true;
             }
         }
         executor.shutdownNow();
@@ -118,15 +131,17 @@ public final class PortForwardWindow {
     private BorderPane buildRoot() {
         Button add = new Button(I18n.t("forward.button.add"));
         add.setOnAction(e -> addRule());
-        Button start = new Button(I18n.t("forward.button.start"));
-        start.setOnAction(e -> startSelected());
-        Button stop = new Button(I18n.t("forward.button.stop"));
-        stop.setOnAction(e -> stopSelected());
-        Button remove = new Button(I18n.t("forward.button.remove"));
-        remove.setOnAction(e -> removeSelected());
-        ToolBar toolBar = new ToolBar(add, start, stop, remove);
+        startButton = new Button(I18n.t("forward.button.start"));
+        startButton.setOnAction(e -> startSelected());
+        stopButton = new Button(I18n.t("forward.button.stop"));
+        stopButton.setOnAction(e -> stopSelected());
+        removeButton = new Button(I18n.t("forward.button.remove"));
+        removeButton.setOnAction(e -> removeSelected());
+        ToolBar toolBar = new ToolBar(add, startButton, stopButton, removeButton);
 
         buildTable();
+        table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonStates());
+        updateButtonStates();
 
         BorderPane root = new BorderPane();
         root.setTop(toolBar);
@@ -135,6 +150,17 @@ public final class PortForwardWindow {
         center.setPadding(new Insets(8));
         root.setCenter(center);
         return root;
+    }
+
+    private void updateButtonStates() {
+        Row selected = table.getSelectionModel().getSelectedItem();
+        boolean running = selected != null && selected.status == Status.RUNNING;
+        boolean canStart = selected != null
+                && selected.status != Status.RUNNING
+                && selected.status != Status.STARTING;
+        startButton.setDisable(!canStart);
+        stopButton.setDisable(!running);
+        removeButton.setDisable(selected == null);
     }
 
     private void buildTable() {
@@ -176,6 +202,7 @@ public final class PortForwardWindow {
         Row row = new Row(spec.get());
         rows.add(row);
         startRow(row); // 添加即尝试启动
+        updateButtonStates();
     }
 
     private void startSelected() {
@@ -197,10 +224,13 @@ public final class PortForwardWindow {
         if (row == null) {
             return;
         }
-        if (row.handle != null) {
-            PortForward handle = row.handle;
-            row.handle = null;
-            executor.submit(handle::close);
+        PortForward handle = row.handle;
+        row.handle = null;
+        if (handle != null) {
+            stopInBackground(handle, row.spec.name());
+        } else {
+            // 正在启动中就被移除：让 startRow 完成后立即关闭
+            row.stopPending = true;
         }
         rows.remove(row);
     }
@@ -208,15 +238,25 @@ public final class PortForwardWindow {
     private void startRow(Row row) {
         row.status = Status.STARTING;
         row.detail = "";
+        row.stopPending = false;
         table.refresh();
+        updateButtonStates();
         executor.submit(() -> {
             try {
                 PortForward handle = ssh.openForward(row.spec);
                 Platform.runLater(() -> {
-                    row.handle = handle;
-                    row.status = Status.RUNNING;
-                    row.detail = String.valueOf(handle.boundPort());
+                    if (row.stopPending) {
+                        // 启动过程中用户已要求停止/移除
+                        row.status = Status.STOPPED;
+                        row.detail = "";
+                        stopInBackground(handle, row.spec.name());
+                    } else {
+                        row.handle = handle;
+                        row.status = Status.RUNNING;
+                        row.detail = String.valueOf(handle.boundPort());
+                    }
                     table.refresh();
+                    updateButtonStates();
                 });
             } catch (RuntimeException ex) {
                 log.warn("Start forward failed for {}: {}", row.spec.name(), ex.getMessage());
@@ -224,9 +264,23 @@ public final class PortForwardWindow {
                     row.status = Status.ERROR;
                     row.detail = ex.getMessage();
                     table.refresh();
+                    updateButtonStates();
                 });
             }
         });
+    }
+
+    /** 在后台线程关闭转发，避免阻塞 FX 线程。 */
+    private void stopInBackground(PortForward handle, String name) {
+        Thread closer = new Thread(() -> {
+            try {
+                handle.close();
+            } catch (RuntimeException ex) {
+                log.warn("Error stopping forward {}: {}", name, ex.getMessage());
+            }
+        }, "forward-stop-" + name);
+        closer.setDaemon(true);
+        closer.start();
     }
 
     private void stopRow(Row row) {
@@ -235,8 +289,12 @@ public final class PortForwardWindow {
         row.status = Status.STOPPED;
         row.detail = "";
         table.refresh();
+        updateButtonStates();
         if (handle != null) {
-            executor.submit(handle::close);
+            stopInBackground(handle, row.spec.name());
+        } else {
+            // 正在启动中就被停止：让 startRow 完成后立即关闭
+            row.stopPending = true;
         }
     }
 

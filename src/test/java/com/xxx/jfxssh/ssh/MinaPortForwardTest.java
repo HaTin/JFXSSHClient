@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -93,6 +94,12 @@ class MinaPortForwardTest {
 
                 fwd.close();
                 assertFalse(fwd.isOpen());
+
+                // 关闭后本地监听应已释放
+                int closedPort = fwd.boundPort();
+                assertThrows(IOException.class,
+                        () -> new Socket("127.0.0.1", closedPort).close(),
+                        "Port " + closedPort + " should no longer be listening after close");
             }
         }
     }
