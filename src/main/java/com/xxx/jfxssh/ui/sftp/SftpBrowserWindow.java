@@ -210,26 +210,30 @@ public final class SftpBrowserWindow {
                 channel = ssh.openSftp();
                 action.run(channel, progress, row::cancelled);
                 Platform.runLater(() -> {
+                    if (closing.get()) {
+                        return;
+                    }
                     removeRow(row);
                     statusLabel.setText(I18n.t(
                             uploading ? "sftp.status.upload_done" : "sftp.status.download_done", name));
                     onDone.run();
                 });
             } catch (SftpCancelledException ce) {
-                Platform.runLater(() -> {
-                    removeRow(row);
-                    statusLabel.setText(I18n.t("sftp.status.cancelled", name));
-                    onDone.run();
-                });
+                Platform.runLater(() -> onCancelled(row, name));
             } catch (RuntimeException ex) {
-                log.warn("Transfer failed for {}: {}", name, ex.getMessage());
-                String message = SftpErrors.message(
-                        uploading ? "sftp.error.upload" : "sftp.error.download", name, ex);
-                Platform.runLater(() -> {
-                    removeRow(row);
-                    statusLabel.setText(I18n.t("sftp.status.failed", name));
-                    UiDialogs.error(message);
-                });
+                // 窗口关闭 / 用户取消会切断通道，表现为 IOException —— 视为取消，不报错
+                if (closing.get() || row.cancelled()) {
+                    Platform.runLater(() -> onCancelled(row, name));
+                } else {
+                    log.warn("Transfer failed for {}: {}", name, ex.getMessage());
+                    String message = SftpErrors.message(
+                            uploading ? "sftp.error.upload" : "sftp.error.download", name, ex);
+                    Platform.runLater(() -> {
+                        removeRow(row);
+                        statusLabel.setText(I18n.t("sftp.status.failed", name));
+                        UiDialogs.error(message);
+                    });
+                }
             } finally {
                 if (channel != null) {
                     try {
@@ -248,6 +252,15 @@ public final class SftpBrowserWindow {
         activeRows.add(row);
         transfersBox.getChildren().add(row.node());
         updateTransfersVisibility();
+    }
+
+    /** 传输被取消 / 窗口关闭中断：窗口关闭则静默，否则移除行并提示已取消（FX 线程）。 */
+    private void onCancelled(TransferRow row, String name) {
+        if (closing.get()) {
+            return;
+        }
+        removeRow(row);
+        statusLabel.setText(I18n.t("sftp.status.cancelled", name));
     }
 
     private void removeRow(TransferRow row) {
