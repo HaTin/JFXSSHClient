@@ -7,7 +7,11 @@ import com.xxx.jfxssh.ssh.SshConnectionConfig;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.ssh.SshShell;
+import com.xxx.jfxssh.service.ActivePortForwardService;
+import com.xxx.jfxssh.service.PortForwardService;
+import com.xxx.jfxssh.ssh.PortForwardSpec;
 import com.xxx.jfxssh.storage.entity.Connection;
+import com.xxx.jfxssh.storage.entity.PortForwardRule;
 import com.xxx.jfxssh.terminal.AwtEventGuard;
 import com.xxx.jfxssh.terminal.SshTtyConnector;
 import com.xxx.jfxssh.terminal.TerminalFontModel;
@@ -42,6 +46,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -70,6 +75,8 @@ public final class TerminalTabsPane {
 
     private final SshService sshService;
     private final AppConfig config;
+    private final PortForwardService portForwardService;
+    private final ActivePortForwardService activeForwardService;
     private final BorderPane root = new BorderPane();
     private final HBox tabBar = new HBox(2);
     private final SwingNode swingNode = new SwingNode();
@@ -83,12 +90,18 @@ public final class TerminalTabsPane {
     private int counter;
 
     /**
-     * @param sshService SSH 服务
-     * @param config     应用配置（终端字体等）
+     * @param sshService           SSH 服务
+     * @param config               应用配置（终端字体等）
+     * @param portForwardService   端口转发规则服务
+     * @param activeForwardService 后台端口转发服务
      */
-    public TerminalTabsPane(SshService sshService, AppConfig config) {
+    public TerminalTabsPane(SshService sshService, AppConfig config,
+                            PortForwardService portForwardService,
+                            ActivePortForwardService activeForwardService) {
         this.sshService = sshService;
         this.config = config;
+        this.portForwardService = portForwardService;
+        this.activeForwardService = activeForwardService;
         this.fontModel = new TerminalFontModel(
                 config.get(AppConfig.KEY_TERMINAL_FONT, AppConfig.DEFAULT_TERMINAL_FONT),
                 config.getInt(AppConfig.KEY_TERMINAL_FONT_SIZE, AppConfig.DEFAULT_TERMINAL_FONT_SIZE));
@@ -291,10 +304,11 @@ public final class TerminalTabsPane {
                 SshSession session = sshService.connect(config);
                 SshShell shell = session.openShell(COLUMNS, ROWS);
                 Platform.runLater(() -> {
-                    createTab(name, config, session, shell);
+                    createTab(name, connection, config, session, shell);
                     if (onConnected != null) {
                         onConnected.run();
                     }
+                    startAutoForwards(connection, config);
                 });
             } catch (RuntimeException ex) {
                 log.warn("Connect failed for {}: {}", target, ex.getMessage());
@@ -305,10 +319,40 @@ public final class TerminalTabsPane {
         worker.start();
     }
 
+    /** 自动启动该连接下标记为 auto_start 的端口转发规则（后台线程，失败仅记录日志）。 */
+    private void startAutoForwards(Connection connection, SshConnectionConfig config) {
+        if (portForwardService == null || activeForwardService == null) {
+            return;
+        }
+        Thread worker = new Thread(() -> {
+            try {
+                List<PortForwardRule> rules = portForwardService.findAutoStartByConnection(connection.getId());
+                if (rules.isEmpty()) {
+                    return;
+                }
+                List<PortForwardSpec> specs = rules.stream()
+                        .map(r -> new PortForwardSpec(
+                                r.getName(),
+                                r.getType(),
+                                r.getBindHost(),
+                                r.getBindPort(),
+                                r.getDestHost() == null ? "" : r.getDestHost(),
+                                r.getDestPort(),
+                                r.isAutoStart()))
+                        .toList();
+                activeForwardService.startAutoForwards(connection, config, specs);
+            } catch (RuntimeException ex) {
+                log.warn("Auto-start forwards failed for {}: {}", connection.getName(), ex.getMessage());
+            }
+        }, "auto-forward-" + connection.getName());
+        worker.setDaemon(true);
+        worker.start();
+    }
+
     /** 连接成功后创建标签并挂载终端（FX 线程）。 */
-    private void createTab(String name, SshConnectionConfig config, SshSession session, SshShell shell) {
+    private void createTab(String name, Connection connection, SshConnectionConfig config, SshSession session, SshShell shell) {
         String cardId = "term-" + (counter++);
-        Entry entry = new Entry(cardId, name, config);
+        Entry entry = new Entry(cardId, name, connection, config);
 
         entry.label = new Label(tabText(DOT_CONNECTED, name));
         Button closeButton = new Button("✕");
@@ -367,6 +411,7 @@ public final class TerminalTabsPane {
                 Platform.runLater(() -> {
                     if (entries.containsKey(cardId)) {
                         attachSession(entry, session, shell);
+                        startAutoForwards(entry.connection, entry.config);
                     } else {
                         session.close();
                     }
@@ -483,6 +528,7 @@ public final class TerminalTabsPane {
     private static final class Entry {
         private final String cardId;
         private final String name;
+        private final Connection connection;
         private final SshConnectionConfig config;
         private Label label;
         private HBox header;
@@ -490,9 +536,10 @@ public final class TerminalTabsPane {
         private volatile SshTtyConnector connector;
         private volatile SshSession session;
 
-        Entry(String cardId, String name, SshConnectionConfig config) {
+        Entry(String cardId, String name, Connection connection, SshConnectionConfig config) {
             this.cardId = cardId;
             this.name = name;
+            this.connection = connection;
             this.config = config;
         }
     }

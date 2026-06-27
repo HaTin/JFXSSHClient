@@ -108,4 +108,22 @@ class ActivePortForwardServiceTest {
         service.stopAll();
         assertTrue(service.getActiveForwards().isEmpty());
     }
+
+    @Test
+    void startAutoForwardsStartsOnlySpecifiedRulesAndSkipsRunning() {
+        PortForwardSpec auto = new PortForwardSpec(
+                "auto", PortForwardSpec.Type.DYNAMIC, "127.0.0.1", 0, "", 0, true);
+        PortForwardSpec manual = new PortForwardSpec(
+                "manual", PortForwardSpec.Type.DYNAMIC, "127.0.0.1", 0, "", 0, false);
+
+        service.startAutoForwards(connection, config, List.of(auto, manual));
+
+        List<ActivePortForwardService.ActiveForwardInfo> active = service.getActiveForwards(connection.getId());
+        assertEquals(1, active.size());
+        assertEquals("auto", active.get(0).ruleName());
+
+        // 再次调用应跳过已运行的规则，不应重复
+        service.startAutoForwards(connection, config, List.of(auto));
+        assertEquals(1, service.getActiveForwards(connection.getId()).size());
+    }
 }

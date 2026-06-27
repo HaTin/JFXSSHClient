@@ -185,7 +185,12 @@ public final class PortForwardWindow {
     private void buildTable() {
         TableColumn<Row, String> nameCol = new TableColumn<>(I18n.t("forward.column.name"));
         nameCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().spec.name()));
-        nameCol.setPrefWidth(120);
+        nameCol.setPrefWidth(110);
+
+        TableColumn<Row, String> autoStartCol = new TableColumn<>(I18n.t("forward.column.auto_start"));
+        autoStartCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().spec.autoStart() ? "✓" : ""));
+        autoStartCol.setPrefWidth(50);
+        autoStartCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<Row, String> typeCol = new TableColumn<>(I18n.t("forward.column.type"));
         typeCol.setCellValueFactory(cd -> new ReadOnlyStringWrapper(I18n.t(typeKey(cd.getValue().spec.type()))));
@@ -204,6 +209,7 @@ public final class PortForwardWindow {
         statusCol.setPrefWidth(170);
 
         table.getColumns().add(nameCol);
+        table.getColumns().add(autoStartCol);
         table.getColumns().add(typeCol);
         table.getColumns().add(bindCol);
         table.getColumns().add(targetCol);
@@ -228,7 +234,8 @@ public final class PortForwardWindow {
                     rule.getBindHost(),
                     rule.getBindPort(),
                     rule.getDestHost() == null ? "" : rule.getDestHost(),
-                    rule.getDestPort());
+                    rule.getDestPort(),
+                    rule.isAutoStart());
             Row row = new Row(rule.getId(), spec);
             ActivePortForwardService.ActiveForwardInfo active = activeByName.get(spec.name());
             if (active != null) {
@@ -351,6 +358,7 @@ public final class PortForwardWindow {
         rule.setType(spec.type());
         rule.setBindHost(spec.bindHost());
         rule.setBindPort(spec.bindPort());
+        rule.setAutoStart(spec.autoStart());
         if (spec.type() != PortForwardSpec.Type.DYNAMIC) {
             rule.setDestHost(spec.destHost());
             rule.setDestPort(spec.destPort());

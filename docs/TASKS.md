@@ -210,11 +210,12 @@ DONE
   - 独立窗口管理规则：表格展示名称/类型/绑定/目标/状态；工具栏添加/启动/停止/编辑/移除/全部启动。
   - **规则持久化**：按连接保存到 SQLite（port_forwards 表），关窗不丢失；打开窗口时加载但不自动启动。
   - **后台运行**：已启动的转发在关闭 Port Forward 窗口后继续运行，由 `ActivePortForwardService` 持有 SSH 会话与句柄；`Tools → Active Forwards` 可查看并停止后台转发。
+  - **自动启动**：规则可标记 `auto_start`，终端 SSH 连接成功后自动启动对应规则。
   - 接线：右键连接 → Port Forward、Tools → Port Forward。
   - 测试：`MinaPortForwardTest` 覆盖本地转发端到端隧道、动态转发开启/关闭；
     `PortForwardServiceTest` / `PortForwardRepositoryTest` 覆盖持久化 CRUD 与外键级联删除；
     `ActivePortForwardServiceTest` 覆盖后台启动/停止/全部停止。
-  - 待办：批量导入/导出、远程转发集成测试、自动启动指定规则。
+  - 待办：批量导入/导出、远程转发集成测试。
 - **V4 Docker**：容器列表 / 详情 / 日志
 - **V5 AI 助手**：右侧可折叠聊天面板
 - 插件系统（Plugin Manager）：产品需求 V1–V5 之外，仅 UI 预留，暂不实现

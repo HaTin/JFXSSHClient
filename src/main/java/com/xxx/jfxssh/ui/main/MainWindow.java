@@ -75,7 +75,7 @@ public final class MainWindow {
                       ActivePortForwardService activeForwardService,
                       CredentialVault vault) {
         this.config = config;
-        this.terminalTabs = new TerminalTabsPane(sshService, config);
+        this.terminalTabs = new TerminalTabsPane(sshService, config, portForwardService, activeForwardService);
         this.sftpLauncher = new SftpBrowserLauncher(sshService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
         this.portForwardLauncher = new PortForwardWindowLauncher(portForwardService, activeForwardService,

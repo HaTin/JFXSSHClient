@@ -5,6 +5,7 @@ import com.xxx.jfxssh.ssh.PortForwardSpec;
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -28,6 +29,7 @@ final class PortForwardDialog {
     private final TextField bindPortField = new TextField();
     private final TextField destHostField = new TextField();
     private final TextField destPortField = new TextField();
+    private final CheckBox autoStartBox = new CheckBox();
     private final Label errorLabel = new Label();
     private final Label hintLabel = new Label();
 
@@ -66,11 +68,12 @@ final class PortForwardDialog {
         grid.addRow(3, new Label(I18n.t("forward.dialog.bind_port")), bindPortField);
         grid.addRow(4, new Label(I18n.t("forward.dialog.dest_host")), destHostField);
         grid.addRow(5, new Label(I18n.t("forward.dialog.dest_port")), destPortField);
+        grid.addRow(6, new Label(I18n.t("forward.dialog.auto_start")), autoStartBox);
         errorLabel.setStyle("-fx-text-fill: #d33;");
-        grid.add(errorLabel, 0, 6, 2, 1);
+        grid.add(errorLabel, 0, 7, 2, 1);
         hintLabel.setWrapText(true);
         hintLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 11px;");
-        grid.add(hintLabel, 0, 7, 2, 1);
+        grid.add(hintLabel, 0, 8, 2, 1);
         dialog.getDialogPane().setContent(grid);
 
         if (existing != null) {
@@ -96,6 +99,7 @@ final class PortForwardDialog {
         nameField.setText(spec.name());
         bindHostField.setText(spec.bindHost());
         bindPortField.setText(String.valueOf(spec.bindPort()));
+        autoStartBox.setSelected(spec.autoStart());
         if (spec.type() != PortForwardSpec.Type.DYNAMIC) {
             destHostField.setText(spec.destHost());
             destPortField.setText(String.valueOf(spec.destPort()));
@@ -146,7 +150,7 @@ final class PortForwardDialog {
                 return fail("forward.validation.dest_port_invalid");
             }
         }
-        return new PortForwardSpec(name, type, bindHost, bindPort, destHost, destPort);
+        return new PortForwardSpec(name, type, bindHost, bindPort, destHost, destPort, autoStartBox.isSelected());
     }
 
     /** 解析端口；allowZero 时允许 0（临时端口）。非法返回 -1。 */

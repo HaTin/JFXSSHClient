@@ -28,7 +28,7 @@ public final class Database {
     private static final Logger log = LoggerFactory.getLogger(Database.class);
 
     private static final String SCHEMA_RESOURCE = "/db/schema.sql";
-    private static final int CURRENT_SCHEMA_VERSION = 3;
+    private static final int CURRENT_SCHEMA_VERSION = 4;
 
     private final AppPaths paths;
     private final String jdbcUrl;
@@ -113,6 +113,9 @@ public final class Database {
         if (version < 3) {
             // port_forwards 新表由 schema.sql 的 IF NOT EXISTS 自动创建
             log.info("Migration: port_forwards table will be created by schema.sql");
+        }
+        if (version < 4) {
+            addColumnIfMissing(conn, "port_forwards", "auto_start", "INTEGER NOT NULL DEFAULT 0");
         }
         writeVersion(conn, CURRENT_SCHEMA_VERSION);
         log.info("Schema migrated {} -> {}", version, CURRENT_SCHEMA_VERSION);

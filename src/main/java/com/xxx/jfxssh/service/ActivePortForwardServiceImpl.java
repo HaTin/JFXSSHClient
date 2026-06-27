@@ -52,6 +52,36 @@ public final class ActivePortForwardServiceImpl implements ActivePortForwardServ
     }
 
     @Override
+    public void startAutoForwards(Connection connection, SshConnectionConfig config, List<PortForwardSpec> rules) {
+        if (rules == null || rules.isEmpty()) {
+            return;
+        }
+        SessionContext ctx = sessions.computeIfAbsent(connection.getId(),
+                id -> new SessionContext(connection, config, connect(config)));
+        ctx.config = config;
+
+        for (PortForwardSpec spec : rules) {
+            if (!spec.autoStart()) {
+                continue;
+            }
+            ActiveForward existing = ctx.forwards.get(spec.name());
+            if (existing != null) {
+                log.debug("Auto-start forward skipped (already running): {} on {}",
+                        spec.name(), connection.getHost());
+                continue;
+            }
+            try {
+                PortForward handle = tryOpenForward(ctx, spec, 0);
+                ctx.forwards.put(spec.name(), new ActiveForward(spec, handle));
+                log.info("Auto-start forward: {} [{}] on {} bound port {}",
+                        spec.name(), spec.type(), connection.getHost(), handle.boundPort());
+            } catch (RuntimeException ex) {
+                log.warn("Auto-start forward failed for {}: {}", spec.name(), ex.getMessage());
+            }
+        }
+    }
+
+    @Override
     public void stopForward(long connectionId, String ruleName) {
         SessionContext ctx = sessions.get(connectionId);
         if (ctx == null) {

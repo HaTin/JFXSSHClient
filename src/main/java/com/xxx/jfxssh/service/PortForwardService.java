@@ -39,4 +39,13 @@ public interface PortForwardService {
      * @return 规则列表（按名称排序）
      */
     List<PortForwardRule> findByConnection(long connectionId);
+
+    /**
+     * 查询某连接下所有自动启动的规则。
+     *
+     * @param connectionId 连接 id
+     * @return 自动启动的规则列表（按名称排序）
+     */
+    List<PortForwardRule> findAutoStartByConnection(long connectionId);
+
 }

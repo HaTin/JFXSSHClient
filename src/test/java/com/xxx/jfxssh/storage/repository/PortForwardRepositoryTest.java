@@ -67,6 +67,7 @@ class PortForwardRepositoryTest {
         PortForwardRule saved = repository.insert(sampleRule(connectionId, "name", PortForwardSpec.Type.LOCAL));
         saved.setName("updated");
         saved.setBindPort(1111);
+        saved.setAutoStart(true);
         saved.setUpdateTime("2026-01-01T00:00:00Z");
 
         repository.update(saved);
@@ -75,6 +76,7 @@ class PortForwardRepositoryTest {
         assertTrue(found.isPresent());
         assertEquals("updated", found.get().getName());
         assertEquals(1111, found.get().getBindPort());
+        assertTrue(found.get().isAutoStart());
     }
 
     @Test
@@ -100,6 +102,22 @@ class PortForwardRepositoryTest {
     }
 
     @Test
+    void findAutoStartByConnectionReturnsOnlyAutoStartRules() {
+        PortForwardRule auto = sampleRule(connectionId, "auto", PortForwardSpec.Type.LOCAL);
+        auto.setAutoStart(true);
+        PortForwardRule manual = sampleRule(connectionId, "manual", PortForwardSpec.Type.LOCAL);
+        manual.setAutoStart(false);
+        repository.insert(auto);
+        repository.insert(manual);
+
+        List<PortForwardRule> rules = repository.findAutoStartByConnection(connectionId);
+
+        assertEquals(1, rules.size());
+        assertEquals("auto", rules.get(0).getName());
+        assertTrue(rules.get(0).isAutoStart());
+    }
+
+    @Test
     void dynamicFieldsMayBeNull() {
         PortForwardRule rule = sampleRule(connectionId, "socks", PortForwardSpec.Type.DYNAMIC);
         rule.setDestHost(null);
@@ -122,6 +140,7 @@ class PortForwardRepositoryTest {
         rule.setBindPort(type == PortForwardSpec.Type.DYNAMIC ? 1080 : 8080);
         rule.setDestHost(type == PortForwardSpec.Type.DYNAMIC ? null : "127.0.0.1");
         rule.setDestPort(type == PortForwardSpec.Type.DYNAMIC ? 0 : 3306);
+        rule.setAutoStart(false);
         rule.setCreateTime("2026-06-27T00:00:00Z");
         rule.setUpdateTime("2026-06-27T00:00:00Z");
         return rule;

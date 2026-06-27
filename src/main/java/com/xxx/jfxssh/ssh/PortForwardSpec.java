@@ -14,12 +14,13 @@ package com.xxx.jfxssh.ssh;
  *
  * <p>{@code bindPort} 为 0 时由系统分配临时端口（实际端口见 {@link PortForward#boundPort()}）。</p>
  *
- * @param name     规则名（仅展示）
- * @param type     转发类型
- * @param bindHost 绑定主机
- * @param bindPort 绑定端口（0=临时）
- * @param destHost 目标主机（DYNAMIC 忽略）
- * @param destPort 目标端口（DYNAMIC 忽略）
+ * @param name       规则名（仅展示）
+ * @param type       转发类型
+ * @param bindHost   绑定主机
+ * @param bindPort   绑定端口（0=临时）
+ * @param destHost   目标主机（DYNAMIC 忽略）
+ * @param destPort   目标端口（DYNAMIC 忽略）
+ * @param autoStart  连接成功后是否自动启动（默认 false）
  */
 public record PortForwardSpec(
         String name,
@@ -27,7 +28,23 @@ public record PortForwardSpec(
         String bindHost,
         int bindPort,
         String destHost,
-        int destPort) {
+        int destPort,
+        boolean autoStart) {
+
+    /**
+     * 构造一条默认不自动启动的规则。
+     *
+     * @param name     规则名
+     * @param type     转发类型
+     * @param bindHost 绑定主机
+     * @param bindPort 绑定端口
+     * @param destHost 目标主机
+     * @param destPort 目标端口
+     */
+    public PortForwardSpec(String name, Type type, String bindHost, int bindPort,
+                           String destHost, int destPort) {
+        this(name, type, bindHost, bindPort, destHost, destPort, false);
+    }
 
     /** 转发类型。 */
     public enum Type {

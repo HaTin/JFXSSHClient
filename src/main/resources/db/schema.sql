@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS port_forwards (
     bind_port     INTEGER NOT NULL,
     dest_host     TEXT,
     dest_port     INTEGER,
+    auto_start    INTEGER NOT NULL DEFAULT 0,  -- 0=false, 1=true
     create_time   TEXT,
     update_time   TEXT,
     FOREIGN KEY (connection_id) REFERENCES connections (id) ON DELETE CASCADE

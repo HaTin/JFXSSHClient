@@ -113,6 +113,22 @@ class PortForwardServiceTest {
     }
 
     @Test
+    void findAutoStartByConnectionReturnsOnlyAutoStartRules() {
+        long c1 = createConnection("c1").getId();
+        PortForwardRule auto = sampleRule(c1, "auto", PortForwardSpec.Type.LOCAL);
+        auto.setAutoStart(true);
+        PortForwardRule manual = sampleRule(c1, "manual", PortForwardSpec.Type.LOCAL);
+        manual.setAutoStart(false);
+        service.save(auto);
+        service.save(manual);
+
+        List<PortForwardRule> rules = service.findAutoStartByConnection(c1);
+        assertEquals(1, rules.size());
+        assertEquals("auto", rules.get(0).getName());
+        assertTrue(rules.get(0).isAutoStart());
+    }
+
+    @Test
     void cascadeDeleteWhenConnectionRemoved() {
         Connection c = createConnection();
         service.save(sampleRule(c.getId(), "owned", PortForwardSpec.Type.LOCAL));
@@ -145,6 +161,7 @@ class PortForwardServiceTest {
         rule.setBindPort(type == PortForwardSpec.Type.DYNAMIC ? 0 : 8080);
         rule.setDestHost(type == PortForwardSpec.Type.DYNAMIC ? null : "127.0.0.1");
         rule.setDestPort(type == PortForwardSpec.Type.DYNAMIC ? 0 : 3306);
+        rule.setAutoStart(false);
         return rule;
     }
 }

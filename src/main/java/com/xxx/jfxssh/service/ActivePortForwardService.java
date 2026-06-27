@@ -47,6 +47,17 @@ public interface ActivePortForwardService {
     void stopAll();
 
     /**
+     * 启动列表中所有规则，跳过已经在运行中的规则。
+     *
+     * <p>通常在终端 SSH 连接成功后调用。失败仅记录日志，不会抛出。</p>
+     *
+     * @param connection 所属连接
+     * @param config     SSH 连接配置
+     * @param rules      要启动的规则列表
+     */
+    void startAutoForwards(Connection connection, SshConnectionConfig config, List<PortForwardSpec> rules);
+
+    /**
      * 查询某连接下所有活跃转发。
      *
      * @param connectionId 连接 id

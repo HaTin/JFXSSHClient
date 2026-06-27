@@ -67,6 +67,11 @@ public final class PortForwardServiceImpl implements PortForwardService {
         return repository.findByConnection(connectionId);
     }
 
+    @Override
+    public List<PortForwardRule> findAutoStartByConnection(long connectionId) {
+        return repository.findAutoStartByConnection(connectionId);
+    }
+
     private void validate(PortForwardRule rule) {
         if (rule == null) {
             throw new IllegalArgumentException("Port forward rule must not be null");

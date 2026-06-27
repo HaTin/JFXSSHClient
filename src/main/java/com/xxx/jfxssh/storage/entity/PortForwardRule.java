@@ -17,6 +17,7 @@ public final class PortForwardRule {
     private int bindPort;
     private String destHost;
     private int destPort;
+    private boolean autoStart;
     private String createTime;
     private String updateTime;
 
@@ -98,6 +99,16 @@ public final class PortForwardRule {
     /** @param destPort 目标端口（DYNAMIC 类型可为 0） */
     public void setDestPort(int destPort) {
         this.destPort = destPort;
+    }
+
+    /** @return 连接成功后是否自动启动 */
+    public boolean isAutoStart() {
+        return autoStart;
+    }
+
+    /** @param autoStart 连接成功后是否自动启动 */
+    public void setAutoStart(boolean autoStart) {
+        this.autoStart = autoStart;
     }
 
     /** @return 创建时间（ISO-8601） */
