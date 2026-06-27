@@ -15,7 +15,7 @@ import javafx.util.StringConverter;
 import java.util.Optional;
 
 /**
- * 添加端口转发规则的表单对话框。
+ * 添加 / 编辑端口转发规则的表单对话框。
  *
  * <p>类型 = 动态(SOCKS) 时禁用目标主机 / 端口。OK 时做基础校验，返回 {@link PortForwardSpec}。</p>
  */
@@ -32,7 +32,11 @@ final class PortForwardDialog {
     private final Label hintLabel = new Label();
 
     PortForwardDialog() {
-        dialog.setTitle(I18n.t("forward.dialog.title"));
+        this(null);
+    }
+
+    PortForwardDialog(PortForwardSpec existing) {
+        dialog.setTitle(I18n.t(existing == null ? "forward.dialog.title" : "forward.dialog.edit_title"));
         ButtonType ok = new ButtonType(I18n.t("button.ok"), ButtonBar.ButtonData.OK_DONE);
         ButtonType cancel = new ButtonType(I18n.t("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         dialog.getDialogPane().getButtonTypes().addAll(ok, cancel);
@@ -69,6 +73,9 @@ final class PortForwardDialog {
         grid.add(hintLabel, 0, 7, 2, 1);
         dialog.getDialogPane().setContent(grid);
 
+        if (existing != null) {
+            populate(existing);
+        }
         updateDestState();
 
         // 拦截 OK：校验失败则不关闭对话框
@@ -82,6 +89,17 @@ final class PortForwardDialog {
 
     Optional<PortForwardSpec> showAndWait() {
         return dialog.showAndWait();
+    }
+
+    private void populate(PortForwardSpec spec) {
+        typeBox.getSelectionModel().select(spec.type());
+        nameField.setText(spec.name());
+        bindHostField.setText(spec.bindHost());
+        bindPortField.setText(String.valueOf(spec.bindPort()));
+        if (spec.type() != PortForwardSpec.Type.DYNAMIC) {
+            destHostField.setText(spec.destHost());
+            destPortField.setText(String.valueOf(spec.destPort()));
+        }
     }
 
     private void updateDestState() {

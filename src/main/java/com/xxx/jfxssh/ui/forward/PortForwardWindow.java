@@ -51,7 +51,7 @@ public final class PortForwardWindow {
     /** 表格行模型（可变，状态变化后调用 {@code table.refresh()}）。 */
     private static final class Row {
         private final Long ruleId;
-        private final PortForwardSpec spec;
+        private PortForwardSpec spec;
         private PortForward handle;
         private Status status = Status.STOPPED;
         private String detail = "";
@@ -78,6 +78,7 @@ public final class PortForwardWindow {
     private Button startButton;
     private Button startAllButton;
     private Button stopButton;
+    private Button editButton;
     private Button removeButton;
 
     /**
@@ -164,14 +165,21 @@ public final class PortForwardWindow {
         startButton.setOnAction(e -> startSelected());
         stopButton = new Button(I18n.t("forward.button.stop"));
         stopButton.setOnAction(e -> stopSelected());
+        editButton = new Button(I18n.t("forward.button.edit"));
+        editButton.setOnAction(e -> editSelected());
         removeButton = new Button(I18n.t("forward.button.remove"));
         removeButton.setOnAction(e -> removeSelected());
         startAllButton = new Button(I18n.t("forward.button.start_all"));
         startAllButton.setOnAction(e -> startAll());
-        ToolBar toolBar = new ToolBar(add, startButton, stopButton, removeButton, startAllButton);
+        ToolBar toolBar = new ToolBar(add, startButton, stopButton, editButton, removeButton, startAllButton);
 
         buildTable();
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonStates());
+        table.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2 && table.getSelectionModel().getSelectedItem() != null) {
+                editSelected();
+            }
+        });
         updateButtonStates();
 
         BorderPane root = new BorderPane();
@@ -189,9 +197,12 @@ public final class PortForwardWindow {
         boolean canStart = selected != null
                 && selected.status != Status.RUNNING
                 && selected.status != Status.STARTING;
+        boolean canEdit = selected != null
+                && (selected.status == Status.STOPPED || selected.status == Status.ERROR);
         boolean canStartAny = rows.stream().anyMatch(r -> r.status != Status.RUNNING && r.status != Status.STARTING);
         startButton.setDisable(!canStart);
         stopButton.setDisable(!running);
+        editButton.setDisable(!canEdit);
         removeButton.setDisable(selected == null);
         startAllButton.setDisable(!canStartAny);
     }
@@ -261,6 +272,25 @@ public final class PortForwardWindow {
         if (row != null && row.status != Status.RUNNING && row.status != Status.STARTING) {
             startRow(row);
         }
+    }
+
+    private void editSelected() {
+        Row row = table.getSelectionModel().getSelectedItem();
+        if (row == null || (row.status != Status.STOPPED && row.status != Status.ERROR)) {
+            return;
+        }
+        Optional<PortForwardSpec> spec = new PortForwardDialog(row.spec).showAndWait();
+        if (spec.isEmpty()) {
+            return;
+        }
+        PortForwardRule rule = toEntity(spec.get());
+        rule.setId(row.ruleId);
+        portForwardService.update(rule);
+        row.spec = spec.get();
+        row.status = Status.STOPPED;
+        row.detail = "";
+        table.refresh();
+        updateButtonStates();
     }
 
     private void startAll() {
