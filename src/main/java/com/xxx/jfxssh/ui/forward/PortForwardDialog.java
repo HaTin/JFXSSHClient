@@ -29,6 +29,7 @@ final class PortForwardDialog {
     private final TextField destHostField = new TextField();
     private final TextField destPortField = new TextField();
     private final Label errorLabel = new Label();
+    private final Label hintLabel = new Label();
 
     PortForwardDialog() {
         dialog.setTitle(I18n.t("forward.dialog.title"));
@@ -63,6 +64,9 @@ final class PortForwardDialog {
         grid.addRow(5, new Label(I18n.t("forward.dialog.dest_port")), destPortField);
         errorLabel.setStyle("-fx-text-fill: #d33;");
         grid.add(errorLabel, 0, 6, 2, 1);
+        hintLabel.setWrapText(true);
+        hintLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 11px;");
+        grid.add(hintLabel, 0, 7, 2, 1);
         dialog.getDialogPane().setContent(grid);
 
         updateDestState();
@@ -84,6 +88,17 @@ final class PortForwardDialog {
         boolean dynamic = typeBox.getValue() == PortForwardSpec.Type.DYNAMIC;
         destHostField.setDisable(dynamic);
         destPortField.setDisable(dynamic);
+        updateHint();
+    }
+
+    private void updateHint() {
+        PortForwardSpec.Type type = typeBox.getValue();
+        String key = switch (type) {
+            case LOCAL -> "forward.hint.local";
+            case REMOTE -> "forward.hint.remote";
+            case DYNAMIC -> "forward.hint.dynamic";
+        };
+        hintLabel.setText(type == null ? "" : I18n.t(key));
     }
 
     /** 校验并构建规则；失败时设置错误文案并返回 null。 */
