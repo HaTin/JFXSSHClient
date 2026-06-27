@@ -20,6 +20,7 @@
   "menu.tools": "工具",
   "menu.tools.sftp": "SFTP",
   "menu.tools.port_forward": "端口转发",
+  "menu.tools.active_forwards": "后台转发",
   "menu.tools.plugin_manager": "插件管理",
 
   "menu.view": "视图",
@@ -230,6 +231,12 @@
   "forward.hint.remote": "远程转发：把本地端口暴露在 SSH 服务器上。示例：绑定 0.0.0.0:8080 → 目标 127.0.0.1:8080。",
   "forward.hint.dynamic": "动态转发：本地 SOCKS5 代理。把浏览器代理设为绑定地址，即可通过 SSH 服务器访问任意目标。",
   "forward.error.reconnect_failed": "重新连接失败：{0}",
+  "forward.active.title": "后台端口转发",
+  "forward.active.stop": "停止",
+  "forward.active.stop_all": "全部停止",
+  "forward.active.refresh": "刷新",
+  "forward.active.empty": "暂无后台转发",
+  "forward.active.column.connection": "连接",
   "msg.forward.connect.fail": "连接 {0} 进行端口转发失败。",
 
   "common.error": "错误"

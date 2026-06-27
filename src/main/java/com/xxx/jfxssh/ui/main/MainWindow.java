@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ui.main;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ActivePortForwardService;
 import com.xxx.jfxssh.service.ConnectionPortService;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.CredentialVault;
@@ -11,6 +12,7 @@ import com.xxx.jfxssh.service.PortForwardService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.dialog.SettingsDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
+import com.xxx.jfxssh.ui.forward.ActiveForwardsWindow;
 import com.xxx.jfxssh.ui.forward.PortForwardWindowLauncher;
 import com.xxx.jfxssh.ui.sftp.SftpBrowserLauncher;
 import com.xxx.jfxssh.ui.status.StatusBar;
@@ -25,6 +27,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 
 import java.io.File;
 
@@ -44,6 +47,7 @@ public final class MainWindow {
     private final ConnectionPortService portService;
     private final SftpBrowserLauncher sftpLauncher;
     private final PortForwardWindowLauncher portForwardLauncher;
+    private final ActivePortForwardService activeForwardService;
     private final BorderPane root = new BorderPane();
 
     private MenuItem lightThemeItem;
@@ -60,6 +64,7 @@ public final class MainWindow {
      * @param groupService      分组服务
      * @param sshService        SSH 服务
      * @param portForwardService 端口转发规则服务
+     * @param activeForwardService 后台转发服务
      * @param vault             凭据保险库
      */
     public MainWindow(AppConfig config,
@@ -67,13 +72,15 @@ public final class MainWindow {
                       GroupService groupService,
                       SshService sshService,
                       PortForwardService portForwardService,
+                      ActivePortForwardService activeForwardService,
                       CredentialVault vault) {
         this.config = config;
         this.terminalTabs = new TerminalTabsPane(sshService, config);
         this.sftpLauncher = new SftpBrowserLauncher(sshService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
-        this.portForwardLauncher = new PortForwardWindowLauncher(sshService, portForwardService,
+        this.portForwardLauncher = new PortForwardWindowLauncher(portForwardService, activeForwardService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
+        this.activeForwardService = activeForwardService;
         this.connectionTree = new ConnectionTreeView(
                 connectionService, groupService, terminalTabs::openTerminal,
                 sftpLauncher, portForwardLauncher, vault, config);
@@ -91,12 +98,13 @@ public final class MainWindow {
     }
 
     /**
-     * 应用退出时调用：关闭所有终端会话。
+     * 应用退出时调用：关闭所有终端会话与后台转发。
      */
     public void shutdown() {
         terminalTabs.closeAll();
         sftpLauncher.closeAll();
         portForwardLauncher.closeAll();
+        activeForwardService.stopAll();
     }
 
     /**
@@ -155,6 +163,7 @@ public final class MainWindow {
         tools.getItems().addAll(
                 item("menu.tools.sftp", connectionTree::openSftpSelected),
                 item("menu.tools.port_forward", connectionTree::openForwardSelected),
+                item("menu.tools.active_forwards", this::showActiveForwards),
                 disabled(item("menu.tools.plugin_manager")));
 
         lightThemeItem = item("menu.view.light_theme");
@@ -246,6 +255,11 @@ public final class MainWindow {
             splitPane.setDividerPositions(
                     Constants.CONNECTION_TREE_WIDTH / Constants.DEFAULT_WINDOW_WIDTH);
         }
+    }
+
+    private void showActiveForwards() {
+        Window owner = root.getScene() == null ? null : root.getScene().getWindow();
+        new ActiveForwardsWindow(activeForwardService, owner).show();
     }
 
     private void showAbout() {

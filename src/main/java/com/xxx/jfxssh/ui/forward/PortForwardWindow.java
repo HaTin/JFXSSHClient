@@ -1,13 +1,10 @@
 package com.xxx.jfxssh.ui.forward;
 
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ActivePortForwardService;
 import com.xxx.jfxssh.service.PortForwardService;
-import com.xxx.jfxssh.ssh.PortForward;
-import com.xxx.jfxssh.ssh.PortForwardException;
 import com.xxx.jfxssh.ssh.PortForwardSpec;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
-import com.xxx.jfxssh.ssh.SshService;
-import com.xxx.jfxssh.ssh.SshSession;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.storage.entity.PortForwardRule;
 import javafx.application.Platform;
@@ -28,6 +25,8 @@ import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,9 +36,9 @@ import java.util.function.Consumer;
 /**
  * 端口转发管理窗口（每个连接一个，独立窗口）。
  *
- * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 移除 / 全部启动）。
- * 规则持久化到 SQLite，打开窗口时只加载不自动启动。启停经单线程执行器在后台执行，结果回 FX 线程刷新表格。
- * 关窗时停止所有转发并关闭底层 SSH 会话。</p>
+ * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 编辑 / 移除 / 全部启动）。
+ * 规则持久化到 SQLite，打开窗口时只加载不自动启动。启停委托给 {@link ActivePortForwardService} 在后台执行；
+ * 关闭本窗口不会停止已启动的转发。</p>
  */
 public final class PortForwardWindow {
 
@@ -52,10 +51,8 @@ public final class PortForwardWindow {
     private static final class Row {
         private final Long ruleId;
         private PortForwardSpec spec;
-        private PortForward handle;
         private Status status = Status.STOPPED;
         private String detail = "";
-        private volatile boolean stopPending;
 
         Row(Long ruleId, PortForwardSpec spec) {
             this.ruleId = ruleId;
@@ -65,10 +62,9 @@ public final class PortForwardWindow {
 
     private final Stage stage;
     private final Connection connection;
-    private SshSession ssh;
-    private final SshService sshService;
     private final SshConnectionConfig sshConfig;
     private final PortForwardService portForwardService;
+    private final ActivePortForwardService activeForwardService;
     private final ExecutorService executor;
     private final Consumer<PortForwardWindow> onClose;
     private final AtomicBoolean closing = new AtomicBoolean(false);
@@ -84,26 +80,23 @@ public final class PortForwardWindow {
     /**
      * @param title              连接显示名（窗口标题）
      * @param connection         所属连接（用于持久化规则）
-     * @param ssh                依附的 SSH 会话（窗口关闭时一并关闭）
-     * @param sshService         SSH 服务（forwarder 损坏时用于重新连接）
-     * @param sshConfig          SSH 连接配置（重新连接用）
-     * @param portForwardService 端口转发规则服务
+     * @param sshConfig          SSH 连接配置（启动转发用）
+     * @param portForwardService 端口转发规则持久化服务
+     * @param activeForwardService 后台转发服务
      * @param owner              父窗口（可空）
      * @param onClose            关闭回调（从启动器注册表移除）
      */
     public PortForwardWindow(String title,
                              Connection connection,
-                             SshSession ssh,
-                             SshService sshService,
                              SshConnectionConfig sshConfig,
                              PortForwardService portForwardService,
+                             ActivePortForwardService activeForwardService,
                              Window owner,
                              Consumer<PortForwardWindow> onClose) {
         this.connection = connection;
-        this.ssh = ssh;
-        this.sshService = sshService;
         this.sshConfig = sshConfig;
         this.portForwardService = portForwardService;
+        this.activeForwardService = activeForwardService;
         this.onClose = onClose;
         this.executor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "forward-ops-" + title);
@@ -126,30 +119,12 @@ public final class PortForwardWindow {
         stage.show();
     }
 
-    /** 关闭窗口：停止所有转发并释放执行器与 SSH 会话（幂等）。 */
+    /** 关闭窗口：仅关闭 UI，不停止后台转发（幂等）。 */
     public void close() {
         if (!closing.compareAndSet(false, true)) {
             return;
         }
-        for (Row row : rows) {
-            PortForward handle = row.handle;
-            row.handle = null;
-            if (handle != null) {
-                try {
-                    handle.close();
-                } catch (RuntimeException e) {
-                    log.warn("Error stopping forward {} on window close: {}", row.spec.name(), e.getMessage());
-                }
-            } else {
-                // 启动中就被关闭窗口：让 startRow 完成后自行关闭
-                row.stopPending = true;
-            }
-        }
         executor.shutdownNow();
-        SshSession sessionToClose = ssh;
-        Thread closer = new Thread(sessionToClose::close, "forward-close");
-        closer.setDaemon(true);
-        closer.start();
         if (onClose != null) {
             onClose.accept(this);
         }
@@ -238,9 +213,14 @@ public final class PortForwardWindow {
         table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
     }
 
-    /** 从数据库加载当前连接的转发规则，状态设为 STOPPED。 */
+    /** 从数据库与后台服务加载当前连接的转发规则，合并状态。 */
     private void loadRules() {
         rows.clear();
+        Map<String, ActivePortForwardService.ActiveForwardInfo> activeByName = new HashMap<>();
+        for (ActivePortForwardService.ActiveForwardInfo info : activeForwardService.getActiveForwards(connection.getId())) {
+            activeByName.put(info.ruleName(), info);
+        }
+
         for (PortForwardRule rule : portForwardService.findByConnection(connection.getId())) {
             PortForwardSpec spec = new PortForwardSpec(
                     rule.getName(),
@@ -249,7 +229,13 @@ public final class PortForwardWindow {
                     rule.getBindPort(),
                     rule.getDestHost() == null ? "" : rule.getDestHost(),
                     rule.getDestPort());
-            rows.add(new Row(rule.getId(), spec));
+            Row row = new Row(rule.getId(), spec);
+            ActivePortForwardService.ActiveForwardInfo active = activeByName.get(spec.name());
+            if (active != null) {
+                row.status = Status.RUNNING;
+                row.detail = String.valueOf(active.bindPort());
+            }
+            rows.add(row);
         }
         table.refresh();
         updateButtonStates();
@@ -313,115 +299,49 @@ public final class PortForwardWindow {
         if (row == null) {
             return;
         }
+        if (row.status == Status.RUNNING) {
+            activeForwardService.stopForward(connection.getId(), row.spec.name());
+        }
         if (row.ruleId != null) {
             portForwardService.delete(row.ruleId);
         }
-        PortForward handle = row.handle;
-        row.handle = null;
-        if (handle != null) {
-            stopInBackground(handle, row.spec.name());
-        } else {
-            // 正在启动中就被移除：让 startRow 完成后立即关闭
-            row.stopPending = true;
-        }
         rows.remove(row);
+        table.refresh();
         updateButtonStates();
     }
 
     private void startRow(Row row) {
         row.status = Status.STARTING;
         row.detail = "";
-        row.stopPending = false;
         table.refresh();
         updateButtonStates();
-        executor.submit(() -> tryStartForward(row, 0));
-    }
-
-    /**
-     * 尝试启动一条转发；若检测到 Mina forwarder 已损坏（如绑定特权端口失败后），
-     * 先重新建立 SSH 会话再重试一次。
-     */
-    private void tryStartForward(Row row, int retryCount) {
-        try {
-            PortForward handle = ssh.openForward(row.spec);
-            Platform.runLater(() -> {
-                if (row.stopPending) {
-                    // 启动过程中用户已要求停止/移除
-                    row.status = Status.STOPPED;
-                    row.detail = "";
-                    stopInBackground(handle, row.spec.name());
-                } else {
-                    row.handle = handle;
-                    row.status = Status.RUNNING;
-                    row.detail = String.valueOf(handle.boundPort());
-                }
-                table.refresh();
-                updateButtonStates();
-            });
-        } catch (RuntimeException ex) {
-            log.warn("Start forward failed for {}: {}", row.spec.name(), ex.getMessage());
-            if (retryCount == 0 && isForwarderClosed(ex)) {
-                log.info("Forwarder closed for {} on {}, attempting reconnect",
-                        row.spec.name(), connection.getHost());
-                try {
-                    SshSession newSession = sshService.connect(sshConfig);
-                    SshSession oldSession = ssh;
-                    ssh = newSession;
-                    Thread closer = new Thread(oldSession::close, "forward-reconnect-close");
-                    closer.setDaemon(true);
-                    closer.start();
-                    tryStartForward(row, retryCount + 1);
-                } catch (RuntimeException reconnectEx) {
-                    log.warn("Reconnect failed for {}: {}", row.spec.name(), reconnectEx.getMessage());
-                    Platform.runLater(() -> {
-                        row.status = Status.ERROR;
-                        row.detail = I18n.t("forward.error.reconnect_failed", reconnectEx.getMessage());
-                        table.refresh();
-                        updateButtonStates();
-                    });
-                }
-                return;
-            }
-            Platform.runLater(() -> {
-                row.status = Status.ERROR;
-                row.detail = ex.getMessage();
-                table.refresh();
-                updateButtonStates();
-            });
-        }
-    }
-
-    private boolean isForwarderClosed(RuntimeException ex) {
-        String msg = ex.getMessage();
-        return msg != null && msg.contains("TcpipForwarder is closed or closing");
-    }
-
-    /** 在后台线程关闭转发，避免阻塞 FX 线程。 */
-    private void stopInBackground(PortForward handle, String name) {
-        Thread closer = new Thread(() -> {
+        executor.submit(() -> {
             try {
-                handle.close();
+                int boundPort = activeForwardService.startForward(connection, sshConfig, row.spec);
+                Platform.runLater(() -> {
+                    row.status = Status.RUNNING;
+                    row.detail = String.valueOf(boundPort);
+                    table.refresh();
+                    updateButtonStates();
+                });
             } catch (RuntimeException ex) {
-                log.warn("Error stopping forward {}: {}", name, ex.getMessage());
+                log.warn("Start forward failed for {}: {}", row.spec.name(), ex.getMessage());
+                Platform.runLater(() -> {
+                    row.status = Status.ERROR;
+                    row.detail = ex.getMessage();
+                    table.refresh();
+                    updateButtonStates();
+                });
             }
-        }, "forward-stop-" + name);
-        closer.setDaemon(true);
-        closer.start();
+        });
     }
 
     private void stopRow(Row row) {
-        PortForward handle = row.handle;
-        row.handle = null;
         row.status = Status.STOPPED;
         row.detail = "";
         table.refresh();
         updateButtonStates();
-        if (handle != null) {
-            stopInBackground(handle, row.spec.name());
-        } else {
-            // 正在启动中就被停止：让 startRow 完成后立即关闭
-            row.stopPending = true;
-        }
+        executor.submit(() -> activeForwardService.stopForward(connection.getId(), row.spec.name()));
     }
 
     private PortForwardRule toEntity(PortForwardSpec spec) {
@@ -440,7 +360,15 @@ public final class PortForwardWindow {
 
     private String bindText(Row row) {
         PortForwardSpec spec = row.spec;
-        int port = row.handle != null ? row.handle.boundPort() : spec.bindPort();
+        int port = spec.bindPort();
+        // 运行中且系统分配了临时端口时显示实际端口
+        if (port == 0 && row.status == Status.RUNNING && !row.detail.isBlank()) {
+            try {
+                port = Integer.parseInt(row.detail);
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
         String portText = port == 0 ? "auto" : String.valueOf(port);
         return spec.bindHost() + ":" + portText;
     }

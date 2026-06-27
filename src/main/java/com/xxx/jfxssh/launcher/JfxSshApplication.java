@@ -4,6 +4,8 @@ import com.xxx.jfxssh.common.AppPaths;
 import com.xxx.jfxssh.common.Constants;
 import com.xxx.jfxssh.common.config.AppConfig;
 import com.xxx.jfxssh.common.i18n.I18n;
+import com.xxx.jfxssh.service.ActivePortForwardService;
+import com.xxx.jfxssh.service.ActivePortForwardServiceImpl;
 import com.xxx.jfxssh.service.ConnectionService;
 import com.xxx.jfxssh.service.ConnectionServiceImpl;
 import com.xxx.jfxssh.service.CredentialVault;
@@ -73,8 +75,10 @@ public final class JfxSshApplication extends Application {
                 new FxHostKeyPrompt(),
                 () -> config.getBoolean(AppConfig.KEY_SSH_HOSTKEY_VERIFY, AppConfig.DEFAULT_SSH_HOSTKEY_VERIFY));
         sshService = new MinaSshService(hostKeyVerifier);
+        ActivePortForwardService activeForwardService = new ActivePortForwardServiceImpl(sshService);
 
-        mainWindow = new MainWindow(config, connectionService, groupService, sshService, portForwardService, vault);
+        mainWindow = new MainWindow(config, connectionService, groupService, sshService,
+                portForwardService, activeForwardService, vault);
         Scene scene = new Scene(mainWindow.getRoot(),
                 Constants.DEFAULT_WINDOW_WIDTH, Constants.DEFAULT_WINDOW_HEIGHT);
 

@@ -1,10 +1,9 @@
 package com.xxx.jfxssh.ui.forward;
 
 import com.xxx.jfxssh.common.i18n.I18n;
-import com.xxx.jfxssh.ssh.SshConnectionConfig;
-import com.xxx.jfxssh.ssh.SshService;
-import com.xxx.jfxssh.ssh.SshSession;
+import com.xxx.jfxssh.service.ActivePortForwardService;
 import com.xxx.jfxssh.service.PortForwardService;
+import com.xxx.jfxssh.ssh.SshConnectionConfig;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
 import javafx.application.Platform;
@@ -17,30 +16,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
- * {@link PortForwardLauncher} 实现：后台建立 SSH 连接，成功后弹出独立的端口转发管理窗口。
+ * {@link PortForwardLauncher} 实现：弹出独立的端口转发管理窗口。
  *
- * <p>每个连接一个 {@link PortForwardWindow}（独立 {@link SshSession}）。维护已打开窗口集合，
- * 应用退出时统一关闭。</p>
+ * <p>每个连接可打开一个 {@link PortForwardWindow}；窗口关闭后，已启动的转发由
+ * {@link ActivePortForwardService} 继续在后台运行。本启动器只维护窗口注册表。</p>
  */
 public final class PortForwardWindowLauncher implements PortForwardLauncher {
 
     private static final Logger log = LoggerFactory.getLogger(PortForwardWindowLauncher.class);
 
-    private final SshService sshService;
     private final PortForwardService portForwardService;
+    private final ActivePortForwardService activeForwardService;
     private final Supplier<Window> ownerSupplier;
     private final Set<PortForwardWindow> openWindows = ConcurrentHashMap.newKeySet();
 
     /**
-     * @param sshService         SSH 服务
-     * @param portForwardService 端口转发规则服务
-     * @param ownerSupplier      主窗口提供者（构造期 Scene 尚未就绪，故延迟获取，可返回 null）
+     * @param portForwardService   端口转发规则持久化服务
+     * @param activeForwardService 后台转发服务
+     * @param ownerSupplier        主窗口提供者（构造期 Scene 尚未就绪，故延迟获取，可返回 null）
      */
-    public PortForwardWindowLauncher(SshService sshService,
-                                     PortForwardService portForwardService,
+    public PortForwardWindowLauncher(PortForwardService portForwardService,
+                                     ActivePortForwardService activeForwardService,
                                      Supplier<Window> ownerSupplier) {
-        this.sshService = sshService;
         this.portForwardService = portForwardService;
+        this.activeForwardService = activeForwardService;
         this.ownerSupplier = ownerSupplier;
     }
 
@@ -48,26 +47,24 @@ public final class PortForwardWindowLauncher implements PortForwardLauncher {
     public void open(Connection connection, SshConnectionConfig config) {
         String name = displayName(connection);
         String target = config.getHost() + ":" + config.getPort();
-        Thread worker = new Thread(() -> {
+
+        // 同一连接若已有打开窗口，直接置前（简化处理：这里仍允许打开多个）
+        Platform.runLater(() -> {
             try {
-                SshSession ssh = sshService.connect(config);
-                Platform.runLater(() -> {
-                    Window owner = ownerSupplier == null ? null : ownerSupplier.get();
-                    PortForwardWindow window =
-                            new PortForwardWindow(name, connection, ssh, sshService, config, portForwardService, owner, openWindows::remove);
-                    openWindows.add(window);
-                    window.show();
-                });
+                Window owner = ownerSupplier == null ? null : ownerSupplier.get();
+                PortForwardWindow window = new PortForwardWindow(
+                        name, connection, config, portForwardService, activeForwardService,
+                        owner, openWindows::remove);
+                openWindows.add(window);
+                window.show();
             } catch (RuntimeException ex) {
-                log.warn("Port forward connect failed for {}: {}", target, ex.getMessage());
-                Platform.runLater(() -> UiDialogs.error(I18n.t("msg.forward.connect.fail", target)));
+                log.warn("Port forward window failed for {}: {}", target, ex.getMessage());
+                UiDialogs.error(I18n.t("msg.forward.connect.fail", target));
             }
-        }, "forward-connect-" + name);
-        worker.setDaemon(true);
-        worker.start();
+        });
     }
 
-    /** 关闭所有已打开的端口转发窗口（应用退出时调用）。 */
+    /** 关闭所有已打开的端口转发窗口 UI（不停止后台转发）。 */
     public void closeAll() {
         for (PortForwardWindow window : openWindows) {
             window.close();
