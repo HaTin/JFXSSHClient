@@ -13,6 +13,7 @@ import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.storage.entity.Group;
 import com.xxx.jfxssh.ui.dialog.ConnectionDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
+import com.xxx.jfxssh.ui.forward.PortForwardLauncher;
 import com.xxx.jfxssh.ui.sftp.SftpLauncher;
 import com.xxx.jfxssh.ui.terminal.TerminalLauncher;
 import javafx.scene.control.ContextMenu;
@@ -44,6 +45,7 @@ public final class ConnectionTreeView {
     private final GroupService groupService;
     private final TerminalLauncher terminalLauncher;
     private final SftpLauncher sftpLauncher;
+    private final PortForwardLauncher portForwardLauncher;
     private final CredentialVault vault;
     private final AppConfig config;
     private final TreeView<TreeNodeData> tree = new TreeView<>();
@@ -53,6 +55,7 @@ public final class ConnectionTreeView {
      * @param groupService      分组服务
      * @param terminalLauncher  打开终端的回调
      * @param sftpLauncher      打开 SFTP 浏览器的回调
+     * @param portForwardLauncher 打开端口转发管理器的回调
      * @param vault             凭据保险库（密码加解密）
      * @param config            应用配置（SSH 保活 / 超时）
      */
@@ -60,12 +63,14 @@ public final class ConnectionTreeView {
                               GroupService groupService,
                               TerminalLauncher terminalLauncher,
                               SftpLauncher sftpLauncher,
+                              PortForwardLauncher portForwardLauncher,
                               CredentialVault vault,
                               AppConfig config) {
         this.connectionService = connectionService;
         this.groupService = groupService;
         this.terminalLauncher = terminalLauncher;
         this.sftpLauncher = sftpLauncher;
+        this.portForwardLauncher = portForwardLauncher;
         this.vault = vault;
         this.config = config;
 
@@ -111,6 +116,17 @@ public final class ConnectionTreeView {
         if (item != null && item.getValue() != null
                 && item.getValue().type() == TreeNodeData.Type.CONNECTION) {
             openSftp(item.getValue().connection());
+        }
+    }
+
+    /**
+     * 为当前选中的连接节点打开端口转发管理器（供 Tools → Port Forward 菜单调用）。
+     */
+    public void openForwardSelected() {
+        TreeItem<TreeNodeData> item = tree.getSelectionModel().getSelectedItem();
+        if (item != null && item.getValue() != null
+                && item.getValue().type() == TreeNodeData.Type.CONNECTION) {
+            openForward(item.getValue().connection());
         }
     }
 
@@ -252,6 +268,16 @@ public final class ConnectionTreeView {
         }
         log.info("Opening SFTP for {}:{}", c.getHost(), c.getPort());
         sftpLauncher.open(c, result.config());
+    }
+
+    /** 打开端口转发管理器：复用与开终端相同的认证解析，独立窗口展示。 */
+    private void openForward(Connection c) {
+        AuthResult result = buildConfig(c);
+        if (result == null) {
+            return;
+        }
+        log.info("Opening port forward for {}:{}", c.getHost(), c.getPort());
+        portForwardLauncher.open(c, result.config());
     }
 
     /** 认证解析结果：配置 + 凭据是否为本次手动输入（可提示保存）。 */
@@ -489,6 +515,7 @@ public final class ConnectionTreeView {
                 connectionMenu = new ContextMenu(
                         menuItem("tree.menu.connect", () -> connect(currentConnection())),
                         menuItem("tree.menu.sftp", () -> openSftp(currentConnection())),
+                        menuItem("tree.menu.port_forward", () -> openForward(currentConnection())),
                         new SeparatorMenuItem(),
                         menuItem("tree.menu.edit", () -> editConnection(currentConnection())),
                         menuItem("tree.menu.duplicate", () -> duplicateConnection(currentConnection())),

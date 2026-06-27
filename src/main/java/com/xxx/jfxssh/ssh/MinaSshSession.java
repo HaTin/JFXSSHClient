@@ -2,6 +2,8 @@ package com.xxx.jfxssh.ssh;
 
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.client.session.forward.PortForwardingTracker;
+import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
@@ -77,6 +79,32 @@ final class MinaSshSession implements SshSession {
             return new MinaSftpSession(sftp, host, port);
         } catch (IOException e) {
             throw new SshConnectException("Failed to open SFTP on " + host + ":" + port, e);
+        }
+    }
+
+    @Override
+    public PortForward openForward(PortForwardSpec spec) {
+        try {
+            PortForwardingTracker tracker;
+            switch (spec.type()) {
+                case LOCAL -> tracker = session.createLocalPortForwardingTracker(
+                        new SshdSocketAddress(spec.bindHost(), spec.bindPort()),
+                        new SshdSocketAddress(spec.destHost(), spec.destPort()));
+                case REMOTE -> tracker = session.createRemotePortForwardingTracker(
+                        new SshdSocketAddress(spec.bindHost(), spec.bindPort()),
+                        new SshdSocketAddress(spec.destHost(), spec.destPort()));
+                case DYNAMIC -> tracker = session.createDynamicPortForwardingTracker(
+                        new SshdSocketAddress(spec.bindHost(), spec.bindPort()));
+                default -> throw new IllegalArgumentException("Unknown forward type: " + spec.type());
+            }
+            int boundPort = tracker.getBoundAddress().getPort();
+            log.info("Port forward started: {} [{}] bound port {} on {}:{}",
+                    spec.name(), spec.type(), boundPort, host, port);
+            return new MinaPortForward(spec.name(), spec.type(), boundPort, tracker);
+        } catch (IOException e) {
+            throw new PortForwardException(
+                    "Failed to start forward '" + spec.name() + "' on " + host + ":" + port
+                            + ": " + e.getMessage(), e);
         }
     }
 

@@ -10,6 +10,7 @@ import com.xxx.jfxssh.service.GroupService;
 import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.ui.dialog.SettingsDialog;
 import com.xxx.jfxssh.ui.dialog.UiDialogs;
+import com.xxx.jfxssh.ui.forward.PortForwardWindowLauncher;
 import com.xxx.jfxssh.ui.sftp.SftpBrowserLauncher;
 import com.xxx.jfxssh.ui.status.StatusBar;
 import com.xxx.jfxssh.ui.terminal.TerminalTabsPane;
@@ -41,6 +42,7 @@ public final class MainWindow {
     private final ConnectionTreeView connectionTree;
     private final ConnectionPortService portService;
     private final SftpBrowserLauncher sftpLauncher;
+    private final PortForwardWindowLauncher portForwardLauncher;
     private final BorderPane root = new BorderPane();
 
     private MenuItem lightThemeItem;
@@ -67,9 +69,11 @@ public final class MainWindow {
         this.terminalTabs = new TerminalTabsPane(sshService, config);
         this.sftpLauncher = new SftpBrowserLauncher(sshService,
                 () -> root.getScene() == null ? null : root.getScene().getWindow());
+        this.portForwardLauncher = new PortForwardWindowLauncher(sshService,
+                () -> root.getScene() == null ? null : root.getScene().getWindow());
         this.connectionTree = new ConnectionTreeView(
                 connectionService, groupService, terminalTabs::openTerminal,
-                sftpLauncher, vault, config);
+                sftpLauncher, portForwardLauncher, vault, config);
         this.portService = new ConnectionPortService(connectionService, groupService);
         root.setTop(buildMenuBar());
         root.setCenter(buildCenter());
@@ -89,6 +93,7 @@ public final class MainWindow {
     public void shutdown() {
         terminalTabs.closeAll();
         sftpLauncher.closeAll();
+        portForwardLauncher.closeAll();
     }
 
     /**
@@ -146,7 +151,7 @@ public final class MainWindow {
         Menu tools = menu("menu.tools");
         tools.getItems().addAll(
                 item("menu.tools.sftp", connectionTree::openSftpSelected),
-                disabled(item("menu.tools.port_forward")),
+                item("menu.tools.port_forward", connectionTree::openForwardSelected),
                 disabled(item("menu.tools.plugin_manager")));
 
         lightThemeItem = item("menu.view.light_theme");

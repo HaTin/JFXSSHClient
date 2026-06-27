@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ssh;
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.pubkey.AcceptAllPublickeyAuthenticator;
+import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.shell.ProcessShellFactory;
 import org.apache.sshd.sftp.server.SftpSubsystemFactory;
@@ -40,6 +41,7 @@ public final class EmbeddedSshServer implements AutoCloseable {
         sshd.setPublickeyAuthenticator(AcceptAllPublickeyAuthenticator.INSTANCE);
         sshd.setShellFactory(new ProcessShellFactory("sh", "/bin/sh"));
         sshd.setSubsystemFactories(List.of(new SftpSubsystemFactory()));
+        sshd.setForwardingFilter(AcceptAllForwardingFilter.INSTANCE);
         if (sftpRoot != null) {
             sshd.setFileSystemFactory(new VirtualFileSystemFactory(sftpRoot));
         }

@@ -136,9 +136,9 @@ DONE
 
 ## 工程化
 
-- 单元测试：JUnit 5 + surefire，51 个用例（cipher / vault / settings / i18n /
+- 单元测试：JUnit 5 + surefire，53 个用例（cipher / vault / settings / i18n /
   connection / group + 级联 / ssh 集成 / tty-connector 断开重连 / SFTP 浏览·传输·
-  取消·多通道·错误码），mvn test 全绿（其中权限错误用例在 root 环境自动跳过）
+  取消·多通道·错误码 / 端口转发本地+动态），mvn test 全绿（其中权限错误用例在 root 环境自动跳过）
 
 ---
 
@@ -205,7 +205,13 @@ DONE
     多通道共存 / mkdir+rename+递归delete / 权限错误状态码（root 环境自动跳过）。
   - 待办：**文件夹整体上传/下载**（当前选目录提示"请选择文件"）、**覆盖确认**（同名直接覆盖）、
     **取消单个传输后目标栏不自动刷新**、断点续传、传输队列（并发数上限/暂停/重排）、拖拽。
-- **V3 Port Forward**：端口转发表格管理；Tools → Port Forward 菜单已置灰预留
+- **V3 Port Forward**：已完成。
+  - 支持本地转发（-L）、远程转发（-R）、动态 SOCKS 代理（-D）。
+  - 独立窗口管理规则：表格展示名称/类型/绑定/目标/状态；工具栏添加/启动/停止/移除。
+  - 规则仅内存保存，关窗即丢；绑定端口支持 0 让系统分配临时端口。
+  - 接线：右键连接 → Port Forward、Tools → Port Forward。
+  - 测试：`MinaPortForwardTest` 覆盖本地转发端到端隧道、动态转发开启/关闭。
+  - 待办：规则持久化、批量导入/导出、远程转发集成测试。
 - **V4 Docker**：容器列表 / 详情 / 日志
 - **V5 AI 助手**：右侧可折叠聊天面板
 - 插件系统（Plugin Manager）：产品需求 V1–V5 之外，仅 UI 预留，暂不实现

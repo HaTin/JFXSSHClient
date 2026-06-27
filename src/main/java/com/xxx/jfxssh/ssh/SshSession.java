@@ -39,6 +39,15 @@ public interface SshSession extends AutoCloseable {
     SftpSession openSftp();
 
     /**
+     * 基于本会话启动一条端口转发。
+     *
+     * @param spec 转发规则
+     * @return 转发句柄
+     * @throws PortForwardException 启动失败（如绑定端口被占用）时抛出
+     */
+    PortForward openForward(PortForwardSpec spec);
+
+    /**
      * 关闭连接。
      */
     @Override
