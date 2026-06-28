@@ -1,6 +1,6 @@
 # JFX SSH Client
 
-A modern, cross-platform SSH client built with JavaFX — connection management, a real terminal, SFTP, and port forwarding in one desktop app. Inspired by XShell / FinalShell / MobaXterm.
+A modern, cross-platform SSH client built with JavaFX — connection management, a real terminal, SFTP, and port forwarding in one desktop app. 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
@@ -93,7 +93,7 @@ Layering is strict: `UI → Service → Repository → Database`. The `ssh` and 
 
 # 中文说明
 
-基于 JavaFX 的现代化跨平台 SSH 客户端 —— 在一个桌面应用里集成连接管理、真实终端、SFTP 与端口转发。对标 XShell / FinalShell / MobaXterm。
+基于 JavaFX 的现代化跨平台 SSH 客户端 —— 在一个桌面应用里集成连接管理、真实终端、SFTP 与端口转发。
 
 ## 功能特性
 
