@@ -21,7 +21,6 @@
   "menu.tools.sftp": "SFTP",
   "menu.tools.port_forward": "端口转发",
   "menu.tools.active_forwards": "后台转发",
-  "menu.tools.plugin_manager": "插件管理",
 
   "menu.view": "视图",
   "menu.view.light_theme": "浅色主题",

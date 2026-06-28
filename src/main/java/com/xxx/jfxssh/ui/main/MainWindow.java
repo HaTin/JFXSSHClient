@@ -158,13 +158,11 @@ public final class MainWindow {
                 item("menu.connection.reconnect", terminalTabs::reconnectActive),
                 item("menu.connection.close_session", terminalTabs::closeActive));
 
-        // 未上线功能：V1 置灰（见 UI_DESIGN.md V1 菜单可见性）
         Menu tools = menu("menu.tools");
         tools.getItems().addAll(
                 item("menu.tools.sftp", connectionTree::openSftpSelected),
                 item("menu.tools.port_forward", connectionTree::openForwardSelected),
-                item("menu.tools.active_forwards", this::showActiveForwards),
-                disabled(item("menu.tools.plugin_manager")));
+                item("menu.tools.active_forwards", this::showActiveForwards));
 
         lightThemeItem = item("menu.view.light_theme");
         darkThemeItem = item("menu.view.dark_theme");
@@ -308,10 +306,5 @@ public final class MainWindow {
         } catch (RuntimeException e) {
             UiDialogs.error(I18n.t("msg.import.fail", e.getMessage()));
         }
-    }
-
-    private MenuItem disabled(MenuItem item) {
-        item.setDisable(true);
-        return item;
     }
 }

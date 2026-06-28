@@ -205,7 +205,7 @@ Documentation
 ```text
 Tools → SFTP            (V2)
 Tools → Port Forward    (V3)
-Tools → Plugin Manager  (暂不实现)
+Tools → Plugin Manager  (已移除，不考虑)
 ```
 
 说明：

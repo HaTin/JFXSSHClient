@@ -21,7 +21,6 @@
   "menu.tools.sftp": "SFTP",
   "menu.tools.port_forward": "Port Forward",
   "menu.tools.active_forwards": "Active Forwards",
-  "menu.tools.plugin_manager": "Plugin Manager",
 
   "menu.view": "View",
   "menu.view.light_theme": "Light Theme",
