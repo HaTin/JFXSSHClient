@@ -10,6 +10,22 @@ A modern, cross-platform SSH client built with JavaFX — connection management,
 
 ---
 
+## Screenshots / 截图
+
+**Main window — connection tree & terminal / 主界面：连接树与终端**
+
+![Main window](docs/Snipaste_2026-06-29_00-53-12.png)
+
+**SFTP dual-pane file manager / SFTP 双栏文件管理器**
+
+![SFTP file manager](docs/Snipaste_2026-06-29_00-53-40.png)
+
+**Port forwarding manager / 端口转发管理**
+
+![Port forwarding](docs/Snipaste_2026-06-29_00-53-55.png)
+
+---
+
 ## Features
 
 - **Connection management** — create / edit / delete / duplicate connections, organized into nestable groups, persisted in SQLite.
