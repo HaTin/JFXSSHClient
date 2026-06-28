@@ -75,6 +75,26 @@ class MinaSshServiceTest {
     }
 
     @Test
+    void publicKeyAuthFromInMemoryContentConnects() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+        String body = Base64.getMimeEncoder(64, "\n".getBytes())
+                .encodeToString(pair.getPrivate().getEncoded());
+        String keyContent = "-----BEGIN PRIVATE KEY-----\n" + body + "\n-----END PRIVATE KEY-----\n";
+
+        // 不写文件，直接把私钥内容交给配置（对应「输入私钥内容」加密存库后的连接路径）
+        SshConnectionConfig config = SshConnectionConfig.builder("127.0.0.1", EmbeddedSshServer.USER)
+                .port(server.port())
+                .authType(AuthType.PRIVATE_KEY)
+                .privateKeyContent(keyContent)
+                .build();
+        try (SshSession session = service.connect(config)) {
+            assertTrue(session.isOpen());
+        }
+    }
+
+    @Test
     void openShellEchoesCommand() throws Exception {
         try (SshSession session = service.connect(passwordConfig(EmbeddedSshServer.PASSWORD))) {
             SshShell shell = session.openShell(80, 24);

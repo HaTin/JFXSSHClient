@@ -53,7 +53,10 @@
       "Bash(chmod +x run-mac.command)",
       "Bash(mvn -q compile)",
       "Bash(python3 *)",
-      "Bash(git commit -q -m 'feat\\(connection\\): offer to save manually-entered credentials after connect *)"
+      "Bash(git commit -q -m 'feat\\(connection\\): offer to save manually-entered credentials after connect *)",
+      "Bash(mvn -q -DskipTests package)",
+      "Bash(mvn -q test)",
+      "Bash(mvn test *)"
     ]
   }
 }

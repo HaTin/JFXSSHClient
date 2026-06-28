@@ -28,7 +28,8 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
 
     private static final String COLUMNS =
             "id, name, host, port, username, auth_type, password_enc, "
-                    + "private_key_path, group_id, remark, terminal_type, create_time, update_time";
+                    + "private_key_path, private_key_enc, passphrase_enc, "
+                    + "group_id, remark, terminal_type, create_time, update_time";
 
     private final Database database;
 
@@ -42,13 +43,14 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
     @Override
     public Connection insert(Connection c) {
         String sql = "INSERT INTO connections (name, host, port, username, auth_type, "
-                + "password_enc, private_key_path, group_id, remark, terminal_type, create_time, update_time) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "password_enc, private_key_path, private_key_enc, passphrase_enc, "
+                + "group_id, remark, terminal_type, create_time, update_time) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = database.openConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             bindFields(ps, c);
-            ps.setString(11, c.getCreateTime());
-            ps.setString(12, c.getUpdateTime());
+            ps.setString(13, c.getCreateTime());
+            ps.setString(14, c.getUpdateTime());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -64,13 +66,14 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
     @Override
     public void update(Connection c) {
         String sql = "UPDATE connections SET name = ?, host = ?, port = ?, username = ?, "
-                + "auth_type = ?, password_enc = ?, private_key_path = ?, group_id = ?, "
-                + "remark = ?, terminal_type = ?, update_time = ? WHERE id = ?";
+                + "auth_type = ?, password_enc = ?, private_key_path = ?, private_key_enc = ?, "
+                + "passphrase_enc = ?, group_id = ?, remark = ?, terminal_type = ?, update_time = ? "
+                + "WHERE id = ?";
         try (java.sql.Connection conn = database.openConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             bindFields(ps, c);
-            ps.setString(11, c.getUpdateTime());
-            ps.setLong(12, requireId(c));
+            ps.setString(13, c.getUpdateTime());
+            ps.setLong(14, requireId(c));
             int rows = ps.executeUpdate();
             if (rows == 0) {
                 log.warn("Update affected no rows, id={}", c.getId());
@@ -134,7 +137,7 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
         }
     }
 
-    /** 绑定参数 1..10（name..terminal_type），时间戳与 id 由调用方按需绑定。 */
+    /** 绑定参数 1..12（name..terminal_type），时间戳与 id 由调用方按需绑定。 */
     private void bindFields(PreparedStatement ps, Connection c) throws SQLException {
         ps.setString(1, c.getName());
         ps.setString(2, c.getHost());
@@ -143,13 +146,15 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
         ps.setString(5, c.getAuthType() == null ? null : c.getAuthType().name());
         ps.setString(6, c.getPasswordEnc());
         ps.setString(7, c.getPrivateKeyPath());
+        ps.setString(8, c.getPrivateKeyEnc());
+        ps.setString(9, c.getPassphraseEnc());
         if (c.getGroupId() == null) {
-            ps.setNull(8, Types.INTEGER);
+            ps.setNull(10, Types.INTEGER);
         } else {
-            ps.setLong(8, c.getGroupId());
+            ps.setLong(10, c.getGroupId());
         }
-        ps.setString(9, c.getRemark());
-        ps.setString(10, c.getTerminalType());
+        ps.setString(11, c.getRemark());
+        ps.setString(12, c.getTerminalType());
     }
 
     private List<Connection> mapAll(ResultSet rs) throws SQLException {
@@ -170,6 +175,8 @@ public final class ConnectionRepositoryImpl implements ConnectionRepository {
         c.setAuthType(parseAuth(rs.getString("auth_type")));
         c.setPasswordEnc(rs.getString("password_enc"));
         c.setPrivateKeyPath(rs.getString("private_key_path"));
+        c.setPrivateKeyEnc(rs.getString("private_key_enc"));
+        c.setPassphraseEnc(rs.getString("passphrase_enc"));
         long groupId = rs.getLong("group_id");
         c.setGroupId(rs.wasNull() ? null : groupId);
         c.setRemark(rs.getString("remark"));

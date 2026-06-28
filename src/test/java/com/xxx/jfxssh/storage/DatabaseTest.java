@@ -36,9 +36,17 @@ class DatabaseTest {
                     "SELECT COUNT(*) FROM pragma_table_info('port_forwards') WHERE name = 'auto_start'")) {
                 assertTrue(rs.next() && rs.getInt(1) == 1, "port_forwards.auto_start column should exist");
             }
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM pragma_table_info('connections') WHERE name = 'private_key_enc'")) {
+                assertTrue(rs.next() && rs.getInt(1) == 1, "connections.private_key_enc column should exist");
+            }
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT COUNT(*) FROM pragma_table_info('connections') WHERE name = 'passphrase_enc'")) {
+                assertTrue(rs.next() && rs.getInt(1) == 1, "connections.passphrase_enc column should exist");
+            }
             try (ResultSet rs = st.executeQuery("SELECT MAX(version) FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(4, rs.getInt(1));
+                assertEquals(5, rs.getInt(1));
             }
         }
     }

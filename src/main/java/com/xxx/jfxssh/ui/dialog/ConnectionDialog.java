@@ -14,20 +14,25 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * 新建 / 编辑连接对话框（GridPane，见 docs/UI_DESIGN.md）。
  *
- * <p>采集连接字段并返回 {@link Connection}。密码字段按 UI 规范展示，但当前
- * 不持久化（加密待任务7，见 password_hint 提示）。</p>
+ * <p>采集连接字段并返回 {@link Connection}。密码与私钥内容、私钥口令均不在此持久化，
+ * 仅以明文返回给调用方（{@link #getPlainPassword()} / {@link #getPlainPrivateKey()} /
+ * {@link #getPlainPassphrase()}），由调用方用主密码加密落库（见 ARCHITECTURE.md）。</p>
  */
 public final class ConnectionDialog {
 
@@ -40,7 +45,8 @@ public final class ConnectionDialog {
     private final TextField usernameField = new TextField();
     private final ComboBox<AuthType> authCombo = new ComboBox<>();
     private final PasswordField passwordField = new PasswordField();
-    private final TextField keyPathField = new TextField();
+    private final TextArea keyContentArea = new TextArea();
+    private final PasswordField passphraseField = new PasswordField();
     private final ComboBox<Group> groupCombo = new ComboBox<>();
     private final ComboBox<String> terminalTypeCombo = new ComboBox<>();
     private final TextField remarkField = new TextField();
@@ -90,6 +96,21 @@ public final class ConnectionDialog {
         return passwordField.getText();
     }
 
+    /**
+     * @return 用户输入/导入的私钥内容明文（公钥认证用，可空表示编辑时保留原私钥）；
+     * 加密与持久化由调用方处理
+     */
+    public String getPlainPrivateKey() {
+        return keyContentArea.getText();
+    }
+
+    /**
+     * @return 用户输入的私钥口令明文（可空）；加密与持久化由调用方处理
+     */
+    public String getPlainPassphrase() {
+        return passphraseField.getText();
+    }
+
     private GridPane buildForm(List<Group> groups) {
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -133,10 +154,16 @@ public final class ConnectionDialog {
         terminalTypeCombo.getItems().setAll(
                 "xterm-256color", "xterm", "vt100", "vt220", "ansi", "linux", "screen");
 
-        Button browse = new Button(I18n.t("dialog.connection.browse"));
-        browse.setOnAction(e -> chooseKey());
-        HBox keyBox = new HBox(8, keyPathField, browse);
-        HBox.setHgrow(keyPathField, javafx.scene.layout.Priority.ALWAYS);
+        keyContentArea.setPromptText(I18n.t("dialog.connection.private_key_prompt"));
+        keyContentArea.setPrefRowCount(6);
+        keyContentArea.setWrapText(false);
+        keyContentArea.setStyle("-fx-font-family: monospace;");
+        Button importKey = new Button(I18n.t("dialog.connection.import_key"));
+        importKey.setOnAction(e -> importKeyFile());
+        HBox keyButtons = new HBox(8, importKey);
+
+        Label keyHint = new Label(I18n.t("dialog.connection.private_key_hint"));
+        keyHint.setWrapText(true);
 
         Label passwordHint = new Label(I18n.t("dialog.connection.password_hint"));
         passwordHint.setWrapText(true);
@@ -149,14 +176,17 @@ public final class ConnectionDialog {
         grid.addRow(r++, new Label(I18n.t("dialog.connection.auth")), authCombo);
         grid.addRow(r++, new Label(I18n.t("dialog.connection.password")), passwordField);
         grid.add(passwordHint, 1, r++);
-        grid.addRow(r++, new Label(I18n.t("dialog.connection.private_key_path")), keyBox);
+        grid.addRow(r++, new Label(I18n.t("dialog.connection.private_key")), keyContentArea);
+        grid.add(keyButtons, 1, r++);
+        grid.add(keyHint, 1, r++);
+        grid.addRow(r++, new Label(I18n.t("dialog.connection.passphrase")), passphraseField);
         grid.addRow(r++, new Label(I18n.t("dialog.connection.group")), groupCombo);
         grid.addRow(r++, new Label(I18n.t("dialog.connection.terminal_type")), terminalTypeCombo);
         grid.addRow(r, new Label(I18n.t("dialog.connection.remark")), remarkField);
 
-        // 记录密码相关行用于显隐
+        // 记录密码 / 私钥相关行用于显隐
         passwordRow = new javafx.scene.Node[]{passwordField, passwordHint};
-        keyRow = new javafx.scene.Node[]{keyBox};
+        keyRow = new javafx.scene.Node[]{keyContentArea, keyButtons, keyHint, passphraseField};
         return grid;
     }
 
@@ -192,7 +222,12 @@ public final class ConnectionDialog {
         portField.setText(String.valueOf(c.getPort() == 0 ? Constants.DEFAULT_PORT : c.getPort()));
         usernameField.setText(nullToEmpty(c.getUsername()));
         authCombo.setValue(c.getAuthType() == null ? AuthType.PASSWORD : c.getAuthType());
-        keyPathField.setText(nullToEmpty(c.getPrivateKeyPath()));
+        // 编辑时不回显已保存的私钥内容（密文，需主密码解密）；留空表示保留原私钥。
+        // 若已存有私钥（密文或旧版路径），用提示文案告知用户。
+        boolean hasStoredKey = (c.getPrivateKeyEnc() != null && !c.getPrivateKeyEnc().isBlank())
+                || (c.getPrivateKeyPath() != null && !c.getPrivateKeyPath().isBlank());
+        keyContentArea.setPromptText(I18n.t(hasStoredKey
+                ? "dialog.connection.private_key_saved" : "dialog.connection.private_key_prompt"));
         remarkField.setText(nullToEmpty(c.getRemark()));
         terminalTypeCombo.setValue(c.getTerminalType() == null || c.getTerminalType().isBlank()
                 ? "xterm-256color" : c.getTerminalType());
@@ -213,12 +248,17 @@ public final class ConnectionDialog {
         groupCombo.setValue(null);
     }
 
-    private void chooseKey() {
+    private void importKeyFile() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle(I18n.t("dialog.connection.private_key_path"));
+        chooser.setTitle(I18n.t("dialog.connection.import_key"));
         java.io.File file = chooser.showOpenDialog(dialog.getOwner());
-        if (file != null) {
-            keyPathField.setText(file.getAbsolutePath());
+        if (file == null) {
+            return;
+        }
+        try {
+            keyContentArea.setText(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            UiDialogs.error(I18n.t("dialog.connection.import_key_failed", e.getMessage()));
         }
     }
 
@@ -229,12 +269,12 @@ public final class ConnectionDialog {
         target.setUsername(emptyToNull(usernameField.getText()));
         AuthType auth = authCombo.getValue() == null ? AuthType.PASSWORD : authCombo.getValue();
         target.setAuthType(auth);
-        target.setPrivateKeyPath(auth == AuthType.PRIVATE_KEY ? emptyToNull(keyPathField.getText()) : null);
         Group group = groupCombo.getValue();
         target.setGroupId(group == null ? null : group.getId());
         target.setRemark(emptyToNull(remarkField.getText()));
         target.setTerminalType(terminalTypeCombo.getValue());
-        // 注：不写 passwordEnc（明文不落库，加密见任务7）
+        // 注：密码 / 私钥内容 / 口令均不在此写入实体；调用方用主密码加密后落库。
+        // 编辑时若用户未重新输入私钥（文本框为空），保留 target 原有的密文字段。
         return target;
     }
 

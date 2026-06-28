@@ -5,14 +5,22 @@ import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.NamedResource;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
+import org.apache.sshd.common.util.security.SecurityUtils;
 import org.apache.sshd.core.CoreModuleProperties;
 import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
 import java.time.Duration;
 
 /**
@@ -87,16 +95,35 @@ public final class MinaSshService implements SshService, AutoCloseable {
         }
     }
 
-    private void applyAuth(ClientSession session, SshConnectionConfig config) {
+    private void applyAuth(ClientSession session, SshConnectionConfig config) throws IOException {
         if (config.getAuthType() == AuthType.PRIVATE_KEY) {
-            FileKeyPairProvider provider = new FileKeyPairProvider(Path.of(config.getPrivateKeyPath()));
-            String passphrase = config.getPassphrase();
-            if (passphrase != null && !passphrase.isBlank()) {
-                provider.setPasswordFinder((ctx, resource, retryIndex) -> passphrase);
+            String content = config.getPrivateKeyContent();
+            if (content != null && !content.isBlank()) {
+                session.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(loadKeyPairs(content, config)));
+            } else {
+                FileKeyPairProvider provider = new FileKeyPairProvider(Path.of(config.getPrivateKeyPath()));
+                String passphrase = config.getPassphrase();
+                if (passphrase != null && !passphrase.isBlank()) {
+                    provider.setPasswordFinder((ctx, resource, retryIndex) -> passphrase);
+                }
+                session.setKeyIdentityProvider(provider);
             }
-            session.setKeyIdentityProvider(provider);
         } else {
             session.addPasswordIdentity(config.getPassword());
+        }
+    }
+
+    /** 从内存中的私钥内容（PEM/OpenSSH 文本）解析 KeyPair，带口令则解密。 */
+    private Iterable<KeyPair> loadKeyPairs(String content, SshConnectionConfig config) throws IOException {
+        String passphrase = config.getPassphrase();
+        FilePasswordProvider passwordProvider = (passphrase != null && !passphrase.isBlank())
+                ? FilePasswordProvider.of(passphrase)
+                : FilePasswordProvider.EMPTY;
+        try (ByteArrayInputStream in = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))) {
+            return SecurityUtils.loadKeyPairIdentities(
+                    null, NamedResource.ofName("connection"), in, passwordProvider);
+        } catch (GeneralSecurityException e) {
+            throw new IOException("Failed to parse private key: " + e.getMessage(), e);
         }
     }
 

@@ -28,7 +28,7 @@ public final class Database {
     private static final Logger log = LoggerFactory.getLogger(Database.class);
 
     private static final String SCHEMA_RESOURCE = "/db/schema.sql";
-    private static final int CURRENT_SCHEMA_VERSION = 4;
+    private static final int CURRENT_SCHEMA_VERSION = 5;
 
     private final AppPaths paths;
     private final String jdbcUrl;
@@ -116,6 +116,11 @@ public final class Database {
         }
         if (version < 4) {
             addColumnIfMissing(conn, "port_forwards", "auto_start", "INTEGER NOT NULL DEFAULT 0");
+        }
+        if (version < 5) {
+            // 私钥从「文件路径」改为「输入内容加密存库」：新增密文列，private_key_path 保留作兜底
+            addColumnIfMissing(conn, "connections", "private_key_enc", "TEXT");
+            addColumnIfMissing(conn, "connections", "passphrase_enc", "TEXT");
         }
         writeVersion(conn, CURRENT_SCHEMA_VERSION);
         log.info("Schema migrated {} -> {}", version, CURRENT_SCHEMA_VERSION);

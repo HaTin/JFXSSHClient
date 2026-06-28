@@ -92,10 +92,17 @@ class ConnectionServiceTest {
     }
 
     @Test
-    void privateKeyAuthRequiresKeyPath() {
+    void privateKeyContentAndPassphrasePersist() {
+        // 私钥认证不再要求文件路径；改为持久化加密后的私钥内容与口令密文。
         Connection c = sample();
         c.setAuthType(AuthType.PRIVATE_KEY);
-        assertThrows(IllegalArgumentException.class, () -> service.save(c));
+        c.setPrivateKeyEnc("enc-key-blob");
+        c.setPassphraseEnc("enc-pass-blob");
+        Connection saved = service.save(c);
+        Connection after = service.findById(saved.getId()).orElseThrow();
+        assertEquals(AuthType.PRIVATE_KEY, after.getAuthType());
+        assertEquals("enc-key-blob", after.getPrivateKeyEnc());
+        assertEquals("enc-pass-blob", after.getPassphraseEnc());
     }
 
     @Test

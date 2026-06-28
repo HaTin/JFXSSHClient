@@ -48,7 +48,11 @@ auth_type        -- 枚举：PASSWORD / PRIVATE_KEY
 
 password_enc     -- 加密后的密码，仅 auth_type=PASSWORD 时使用，可空
 
-private_key_path -- 仅 auth_type=PRIVATE_KEY 时使用，可空
+private_key_path -- 旧版兜底：私钥文件路径，仅在无 private_key_enc 时回退读取，可空
+
+private_key_enc  -- 私钥内容密文（AES-256-GCM），auth_type=PRIVATE_KEY 时使用，可空
+
+passphrase_enc   -- 私钥口令密文（同一加密方案），可空
 
 group_id         -- 所属分组，外键 groups(id)，可空（未分组）
 
@@ -71,7 +75,8 @@ update_time
 - password_enc 仅存密文，格式 Base64( iv ‖ ciphertext ‖ tag )（AES-256-GCM）。
 - 加密密钥由主密码经 PBKDF2 派生，不入库、不硬编码。
 - 未设置主密码时，不持久化密码，仅当次会话内存保留。
-- 私钥口令（如有）采用同一方案存储。
+- 私钥内容与私钥口令采用同一方案加密存储（private_key_enc / passphrase_enc）；旧库
+  的 private_key_path 在无密文内容时作为兜底，连接时直接读取该文件。
 
 KDF 参数与校验块存于 settings：
 

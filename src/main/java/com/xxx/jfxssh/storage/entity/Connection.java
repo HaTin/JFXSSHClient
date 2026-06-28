@@ -18,6 +18,8 @@ public final class Connection {
     private AuthType authType;
     private String passwordEnc;
     private String privateKeyPath;
+    private String privateKeyEnc;
+    private String passphraseEnc;
     private Long groupId;
     private String remark;
     private String terminalType;
@@ -102,6 +104,26 @@ public final class Connection {
     /** @param privateKeyPath 私钥路径 */
     public void setPrivateKeyPath(String privateKeyPath) {
         this.privateKeyPath = privateKeyPath;
+    }
+
+    /** @return 私钥内容密文（AES-256-GCM，可空） */
+    public String getPrivateKeyEnc() {
+        return privateKeyEnc;
+    }
+
+    /** @param privateKeyEnc 私钥内容密文（禁止明文） */
+    public void setPrivateKeyEnc(String privateKeyEnc) {
+        this.privateKeyEnc = privateKeyEnc;
+    }
+
+    /** @return 私钥口令密文（AES-256-GCM，可空） */
+    public String getPassphraseEnc() {
+        return passphraseEnc;
+    }
+
+    /** @param passphraseEnc 私钥口令密文（禁止明文） */
+    public void setPassphraseEnc(String passphraseEnc) {
+        this.passphraseEnc = passphraseEnc;
     }
 
     /** @return 所属分组 id（可空，未分组为 null） */

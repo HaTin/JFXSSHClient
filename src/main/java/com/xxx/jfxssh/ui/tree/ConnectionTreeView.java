@@ -26,6 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -193,7 +196,7 @@ public final class ConnectionTreeView {
         ConnectionDialog dialog = new ConnectionDialog(
                 null, groupService.findAll(), group == null ? null : group.getId());
         dialog.showAndWait().ifPresent(c -> {
-            applyPassword(c, dialog.getPlainPassword());
+            applyCredentials(c, dialog);
             connectionService.save(c);
             reload();
         });
@@ -203,15 +206,33 @@ public final class ConnectionTreeView {
         ConnectionDialog dialog = new ConnectionDialog(
                 connection, groupService.findAll(), connection.getGroupId());
         dialog.showAndWait().ifPresent(c -> {
-            applyPassword(c, dialog.getPlainPassword());
+            applyCredentials(c, dialog);
             connectionService.update(c);
             reload();
         });
     }
 
+    /**
+     * 按认证方式加密保存对话框输入的凭据：密码认证存密码，私钥认证存私钥内容 + 口令。
+     * 编辑时若未重新输入（留空），保留实体原有密文。
+     */
+    private void applyCredentials(Connection c, ConnectionDialog dialog) {
+        if (c.getAuthType() == AuthType.PASSWORD) {
+            // 切换/保持密码认证：清除私钥相关字段，避免遗留
+            c.setPrivateKeyEnc(null);
+            c.setPassphraseEnc(null);
+            c.setPrivateKeyPath(null);
+            applyPassword(c, dialog.getPlainPassword());
+        } else {
+            // 私钥认证：清除密码，加密保存私钥内容与口令
+            c.setPasswordEnc(null);
+            applyPrivateKey(c, dialog.getPlainPrivateKey(), dialog.getPlainPassphrase());
+        }
+    }
+
     /** 若输入了密码（密码认证），用保险库加密后写入；用户取消主密码则不保存密码。 */
     private void applyPassword(Connection c, String plain) {
-        if (c.getAuthType() != AuthType.PASSWORD || plain == null || plain.isBlank()) {
+        if (plain == null || plain.isBlank()) {
             return;
         }
         if (ensureUnlocked()) {
@@ -219,6 +240,24 @@ public final class ConnectionTreeView {
         } else {
             UiDialogs.info("app.title", I18n.t("dialog.master.not_saved"));
         }
+    }
+
+    /**
+     * 私钥认证：若用户输入了新私钥内容，用主密码加密落库（口令随私钥一并加密），
+     * 并清除旧版文件路径；留空则保留实体原有私钥（编辑场景）。
+     */
+    private void applyPrivateKey(Connection c, String plainKey, String plainPassphrase) {
+        if (plainKey == null || plainKey.isBlank()) {
+            return; // 未重新输入：保留原有密文；新建则连接时再提示
+        }
+        if (!ensureUnlocked()) {
+            UiDialogs.info("app.title", I18n.t("dialog.master.not_saved"));
+            return;
+        }
+        c.setPrivateKeyEnc(vault.encrypt(plainKey.trim()));
+        c.setPrivateKeyPath(null); // 改用内容存储，清除旧版路径
+        c.setPassphraseEnc(plainPassphrase != null && !plainPassphrase.isBlank()
+                ? vault.encrypt(plainPassphrase) : null);
     }
 
     private void duplicateConnection(Connection c) {
@@ -230,6 +269,8 @@ public final class ConnectionTreeView {
         copy.setUsername(c.getUsername());
         copy.setAuthType(c.getAuthType());
         copy.setPrivateKeyPath(c.getPrivateKeyPath());
+        copy.setPrivateKeyEnc(c.getPrivateKeyEnc());
+        copy.setPassphraseEnc(c.getPassphraseEnc());
         copy.setPasswordEnc(c.getPasswordEnc());
         copy.setGroupId(c.getGroupId());
         copy.setRemark(c.getRemark());
@@ -290,8 +331,20 @@ public final class ConnectionTreeView {
             return;
         }
         if (config.getAuthType() == AuthType.PRIVATE_KEY) {
+            String key = config.getPrivateKeyContent();
+            if (key == null || key.isBlank()) {
+                return; // 无内容可保存（理论上不会发生，连接时已读取文件内容）
+            }
+            if (!ensureUnlocked()) {
+                UiDialogs.info("app.title", I18n.t("dialog.master.not_saved"));
+                return;
+            }
             c.setAuthType(AuthType.PRIVATE_KEY);
-            c.setPrivateKeyPath(config.getPrivateKeyPath());
+            c.setPrivateKeyEnc(vault.encrypt(key));
+            c.setPrivateKeyPath(null);
+            String pass = config.getPassphrase();
+            c.setPassphraseEnc(pass != null && !pass.isBlank() ? vault.encrypt(pass) : null);
+            c.setPasswordEnc(null);
             connectionService.update(c);
             reload();
             return;
@@ -324,9 +377,7 @@ public final class ConnectionTreeView {
         }
 
         if (c.getAuthType() == AuthType.PRIVATE_KEY) {
-            return new AuthResult(builder.authType(AuthType.PRIVATE_KEY)
-                    .privateKeyPath(c.getPrivateKeyPath())
-                    .build(), false);
+            return buildPrivateKeyConfig(c, builder);
         }
 
         String enc = c.getPasswordEnc();
@@ -366,6 +417,65 @@ public final class ConnectionTreeView {
         return chooseMethod(c, builder);
     }
 
+    /**
+     * 私钥认证：优先解密库中的私钥内容（需主密码解锁，流程同密码）；无密文则回退到
+     * 旧版文件路径；都没有则让用户选择认证方式。用户取消主密码输入返回 null。
+     */
+    private AuthResult buildPrivateKeyConfig(Connection c, SshConnectionConfig.Builder builder) {
+        builder.authType(AuthType.PRIVATE_KEY);
+        String enc = c.getPrivateKeyEnc();
+        if (enc != null && !enc.isBlank()) {
+            if (vault.isUnlocked()) {
+                String key = tryDecrypt(enc);
+                if (key != null) {
+                    return new AuthResult(applyDecryptedKey(c, builder, key), false);
+                }
+            } else {
+                boolean showError = false;
+                while (true) {
+                    UiDialogs.UnlockRequest req = UiDialogs.promptMasterUnlock(showError);
+                    if (req.action() == UiDialogs.UnlockAction.CANCEL) {
+                        return null;
+                    }
+                    if (req.action() == UiDialogs.UnlockAction.OTHER) {
+                        break;
+                    }
+                    boolean ok;
+                    try {
+                        ok = vault.unlock(req.password());
+                    } finally {
+                        CredentialVault.wipe(req.password());
+                    }
+                    if (ok) {
+                        String key = tryDecrypt(enc);
+                        if (key != null) {
+                            return new AuthResult(applyDecryptedKey(c, builder, key), false);
+                        }
+                        break;
+                    }
+                    showError = true;
+                }
+            }
+        } else if (c.getPrivateKeyPath() != null && !c.getPrivateKeyPath().isBlank()) {
+            // 旧版兜底：直接用文件路径
+            return new AuthResult(builder.privateKeyPath(c.getPrivateKeyPath()).build(), false);
+        }
+        return chooseMethod(c, builder);
+    }
+
+    /** 用解密后的私钥内容补全配置，并解密随附口令（若有）。 */
+    private SshConnectionConfig applyDecryptedKey(Connection c, SshConnectionConfig.Builder builder, String keyContent) {
+        builder.privateKeyContent(keyContent);
+        String pEnc = c.getPassphraseEnc();
+        if (pEnc != null && !pEnc.isBlank()) {
+            String pass = tryDecrypt(pEnc);
+            if (pass != null && !pass.isBlank()) {
+                builder.passphrase(pass);
+            }
+        }
+        return builder.build();
+    }
+
     /** 让用户选择认证方式（密码 / 私钥）并补全配置；取消返回 null。entered=true 表示手动输入。 */
     private AuthResult chooseMethod(Connection c, SshConnectionConfig.Builder builder) {
         UiDialogs.AuthChoice choice = UiDialogs.chooseAuthMethod();
@@ -381,12 +491,19 @@ public final class ConnectionTreeView {
             }
             return new AuthResult(builder.authType(AuthType.PASSWORD).password(pw.get()).build(), true);
         }
-        // PRIVATE_KEY
+        // PRIVATE_KEY：读取所选文件内容（不再持有路径），口令可选
         Optional<File> keyFile = UiDialogs.chooseKeyFile();
         if (keyFile.isEmpty()) {
             return null;
         }
-        builder.authType(AuthType.PRIVATE_KEY).privateKeyPath(keyFile.get().getAbsolutePath());
+        String content;
+        try {
+            content = Files.readString(keyFile.get().toPath(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            UiDialogs.error(I18n.t("dialog.connection.import_key_failed", e.getMessage()));
+            return null;
+        }
+        builder.authType(AuthType.PRIVATE_KEY).privateKeyContent(content);
         UiDialogs.promptPassword(I18n.t("dialog.password.title"), I18n.t("dialog.key.passphrase_prompt"))
                 .filter(p -> !p.isBlank())
                 .ifPresent(builder::passphrase);
@@ -397,7 +514,7 @@ public final class ConnectionTreeView {
         try {
             return vault.decrypt(enc);
         } catch (RuntimeException e) {
-            log.warn("Failed to decrypt stored password: {}", e.getMessage());
+            log.warn("Failed to decrypt stored credential: {}", e.getMessage());
             return null;
         }
     }

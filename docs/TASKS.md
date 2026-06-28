@@ -144,6 +144,13 @@ DONE
 
 ## 增强（V1.1）
 
+- 私钥认证改为「输入内容 + 加密存库」：新建/编辑连接的私钥认证不再填文件路径，而是
+  在多行文本框**粘贴私钥内容**（或「从文件导入」按钮一键读入），私钥内容与私钥口令
+  均经主密码 AES-256-GCM 加密后存入 `connections.private_key_enc` / `passphrase_enc`
+  （schema v5 迁移）。连接时解密私钥内容到内存、用 `SecurityUtils.loadKeyPairIdentities`
+  解析 KeyPair，不再依赖磁盘文件。旧库的 `private_key_path` 作兜底：无密文内容时仍按
+  路径读取，老连接不失效。连接成功后「保存凭据」也改为读取并加密私钥内容。
+
 - 设置窗口：File → Settings，TabPane General / Terminal / SSH
   - General：语言（已从 View 菜单归位）、主题、自动保存（实时生效）
   - Terminal：字体、字号（**立即应用到所有已打开终端**，JediTerm reinitFontAndResize）；
@@ -175,11 +182,9 @@ DONE
 
 ## 已知限制 / 待办
 
-- **私钥口令（passphrase）不持久化**：connections 表与 Connection 实体仅有
-  password_enc / private_key_path，无 passphrase 字段。带口令保护的私钥即便"保存凭据"
-  也只存路径，重连时 buildConfig 不会再提示输入口令 → 认证会失败。与 DATABASE.md
-  "私钥口令采用同一方案存储"不符。修复需：schema 加 passphrase_enc 列（v3 迁移）+
-  实体/Repository 读写 + 保存时加密 + buildConfig 解密回填，解密失败再补输。
+- **私钥口令（passphrase）已持久化**（原限制已解决）：随「输入私钥内容加密存库」一并实现，
+  口令经主密码 AES-256-GCM 加密存入 `connections.passphrase_enc`，重连时与私钥内容一起
+  解密回填，无需再次输入。
 - **光标样式设置**：设置窗口 Terminal 页已有下拉但**置灰**，JediTerm 暂无对应设置钩子，预留。
 - **一次性命令执行 execute()**：API.md 标记为 V1 可选，当前未实现（仅交互式 openShell）。
 

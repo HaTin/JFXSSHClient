@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS connections (
     username         TEXT,
     auth_type        TEXT    NOT NULL,            -- PASSWORD / PRIVATE_KEY
     password_enc     TEXT,                        -- Base64(iv||ciphertext||tag), AES-256-GCM
-    private_key_path TEXT,
+    private_key_path TEXT,                        -- 旧版兜底：私钥文件路径（无加密内容时回退读取）
+    private_key_enc  TEXT,                        -- 私钥内容密文，Base64(iv||ciphertext||tag)，AES-256-GCM
+    passphrase_enc   TEXT,                        -- 私钥口令密文，同一加密方案
     group_id         INTEGER,
     remark           TEXT,
     terminal_type    TEXT,                        -- PTY 类型：xterm-256color / xterm / vt100 / ansi / linux ...

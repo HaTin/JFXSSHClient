@@ -19,6 +19,7 @@ public final class SshConnectionConfig {
     private final AuthType authType;
     private final String password;
     private final String privateKeyPath;
+    private final String privateKeyContent;
     private final String passphrase;
     private final Duration connectTimeout;
     private final Duration authTimeout;
@@ -32,6 +33,7 @@ public final class SshConnectionConfig {
         this.authType = b.authType;
         this.password = b.password;
         this.privateKeyPath = b.privateKeyPath;
+        this.privateKeyContent = b.privateKeyContent;
         this.passphrase = b.passphrase;
         this.connectTimeout = b.connectTimeout;
         this.authTimeout = b.authTimeout;
@@ -67,6 +69,11 @@ public final class SshConnectionConfig {
     /** @return 私钥路径（公钥认证用，可空） */
     public String getPrivateKeyPath() {
         return privateKeyPath;
+    }
+
+    /** @return 私钥内容明文（公钥认证用，可空；优先于路径） */
+    public String getPrivateKeyContent() {
+        return privateKeyContent;
     }
 
     /** @return 私钥口令（可空） */
@@ -116,6 +123,7 @@ public final class SshConnectionConfig {
         private AuthType authType = AuthType.PASSWORD;
         private String password;
         private String privateKeyPath;
+        private String privateKeyContent;
         private String passphrase;
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration authTimeout = Duration.ofSeconds(10);
@@ -148,6 +156,12 @@ public final class SshConnectionConfig {
         /** @param privateKeyPath 私钥路径 @return this */
         public Builder privateKeyPath(String privateKeyPath) {
             this.privateKeyPath = privateKeyPath;
+            return this;
+        }
+
+        /** @param privateKeyContent 私钥内容明文（优先于路径） @return this */
+        public Builder privateKeyContent(String privateKeyContent) {
+            this.privateKeyContent = privateKeyContent;
             return this;
         }
 

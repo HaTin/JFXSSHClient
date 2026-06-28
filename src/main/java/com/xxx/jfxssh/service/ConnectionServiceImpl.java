@@ -1,6 +1,5 @@
 package com.xxx.jfxssh.service;
 
-import com.xxx.jfxssh.common.AuthType;
 import com.xxx.jfxssh.storage.entity.Connection;
 import com.xxx.jfxssh.storage.repository.ConnectionRepository;
 import org.slf4j.Logger;
@@ -95,9 +94,7 @@ public final class ConnectionServiceImpl implements ConnectionService {
         if (c.getAuthType() == null) {
             throw new IllegalArgumentException("Auth type must not be null");
         }
-        if (c.getAuthType() == AuthType.PRIVATE_KEY && isBlank(c.getPrivateKeyPath())) {
-            throw new IllegalArgumentException("Private key path required for PRIVATE_KEY auth");
-        }
+        // 私钥认证不强制要求此刻已有私钥：可保存后再补，或连接时输入/导入（同密码认证）。
     }
 
     private boolean isBlank(String s) {
