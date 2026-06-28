@@ -165,7 +165,7 @@ SFTP
 
 Port Forward
 
-Plugin Manager
+Active Forwards
 ```
 
 ---
@@ -196,23 +196,19 @@ Documentation
 
 ---
 
-# V1 菜单可见性
+# 菜单可见性（最终形态）
 
-未上线功能在 V1 隐藏或置灰，禁止点击无响应。
-
-置灰 / 隐藏（后续版本启用）：
+Tools 菜单全部启用：
 
 ```text
-Tools → SFTP            (V2)
-Tools → Port Forward    (V3)
-Tools → Plugin Manager  (已移除，不考虑)
+Tools → SFTP             已启用
+Tools → Port Forward     已启用
+Tools → Active Forwards  已启用（查看 / 停止后台转发）
 ```
 
 说明：
 
-插件系统不在 V1~V5 产品需求内。
-
-Plugin Manager 菜单与窗口设计暂作预留，V1 不实现。
+早期预留的 Plugin Manager（插件管理）不在产品需求内，菜单占位项已移除。
 
 ---
 
@@ -594,20 +590,6 @@ KeepAlive
 Timeout
 
 Host Key Verify
-```
-
----
-
-# 插件管理窗口（预留，V1 不实现）
-
-布局：
-
-```text
-┌──────────────────────────┐
-│ Plugin List              │
-├──────────────────────────┤
-│ Plugin Details           │
-└──────────────────────────┘
 ```
 
 ---

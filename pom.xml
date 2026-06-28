@@ -6,7 +6,7 @@
 
     <groupId>com.xxx</groupId>
     <artifactId>jfxssh</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>JFX SSH Client</name>

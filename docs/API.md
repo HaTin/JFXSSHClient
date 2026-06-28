@@ -26,11 +26,11 @@ openShell(...)             -- 打开交互式 shell channel（PTY），返回输
 
 disconnect()               -- 关闭连接
 
-execute(command)           -- 一次性命令执行（非交互场景，V1 可选）
+execute(command)           -- 一次性命令执行（非交互场景）；最终形态未实现，保留约定供未来扩展
 
 说明：
 
-V1 终端为交互式，主用 openShell；execute 保留给未来非交互需求。
+终端为交互式，使用 openShell；execute 为预留的非交互入口，当前版本不提供实现。
 
 ---
 
