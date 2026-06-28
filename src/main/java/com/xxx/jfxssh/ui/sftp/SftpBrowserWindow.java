@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -387,27 +388,36 @@ public final class SftpBrowserWindow {
         void run(Path localRoot, String remoteRoot) {
             totalBytes = totalSize(localRoot);
             progress.update(0, totalBytes);
-            ensureDir(remoteRoot);
+            ensureRootDir(remoteRoot);
             walk(localRoot, remoteRoot);
             progress.update(totalBytes, totalBytes);
         }
 
+        /**
+         * 递归上传一个目录。<b>每个目录只 list 一次远程</b>得到已存在名称集合，据此判断子项
+         * 是否冲突 / 子目录是否需 mkdir——避免「逐文件 stat」带来的大量网络往返（小文件场景的
+         * 性能关键）。
+         */
         private void walk(Path localDir, String remoteDir) {
+            Set<String> existing = remoteNames(remoteDir);
             for (Path child : listSorted(localDir)) {
                 checkCancel();
-                String remoteChild = joinRemote(remoteDir, child.getFileName().toString());
+                String name = child.getFileName().toString();
+                String remoteChild = joinRemote(remoteDir, name);
                 if (Files.isDirectory(child)) {
-                    ensureDir(remoteChild);
+                    if (!existing.contains(name)) {
+                        channel.mkdir(remoteChild);
+                    }
                     walk(child, remoteChild);
                 } else {
-                    uploadOne(child, remoteChild);
+                    uploadOne(child, remoteChild, existing.contains(name), name);
                 }
             }
         }
 
-        private void uploadOne(Path file, String remote) {
+        private void uploadOne(Path file, String remote, boolean exists, String name) {
             long size = file.toFile().length();
-            if (channel.statEntry(remote).isPresent() && !shouldOverwrite(file.getFileName().toString())) {
+            if (exists && !shouldOverwrite(name)) {
                 sentBytes += size; // 跳过也推进累计进度，使进度条最终归满
                 progress.update(sentBytes, totalBytes);
                 return;
@@ -418,13 +428,27 @@ public final class SftpBrowserWindow {
             sentBytes = base + size;
         }
 
-        /** 远程目录不存在则创建；已是目录则跳过；若同名是文件则报错中止。 */
-        private void ensureDir(String remote) {
+        /** 列出远程目录下的名称集合；目录刚建或无法列出时按空处理。 */
+        private Set<String> remoteNames(String remoteDir) {
+            Set<String> names = new HashSet<>();
+            try {
+                for (SftpEntry e : channel.list(remoteDir)) {
+                    names.add(e.name());
+                }
+            } catch (RuntimeException ex) {
+                log.debug("Cannot list remote dir {} (treat as empty): {}", remoteDir, ex.getMessage());
+            }
+            return names;
+        }
+
+        /** 远程根目录不存在则创建；已是目录则跳过；若同名是文件则报错中止。 */
+        private void ensureRootDir(String remote) {
             Optional<SftpEntry> st = channel.statEntry(remote);
             if (st.isEmpty()) {
                 channel.mkdir(remote);
             } else if (!st.get().directory()) {
-                throw new SftpOperationException(SftpOperationException.STATUS_UNKNOWN, "Remote path is a file, expected a directory: " + remote);
+                throw new SftpOperationException(SftpOperationException.STATUS_UNKNOWN,
+                        "Remote path is a file, expected a directory: " + remote);
             }
         }
 

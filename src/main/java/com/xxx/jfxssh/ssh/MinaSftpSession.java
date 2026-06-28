@@ -97,7 +97,7 @@ final class MinaSftpSession implements SftpSession {
         try (InputStream in = client.read(remotePath);
              FileOutputStream out = new FileOutputStream(localFile)) {
             copy(in, out, total, progress, cancelled);
-            log.info("Downloaded {} -> {} from {}", remotePath, localFile.getAbsolutePath(), target());
+            log.debug("Downloaded {} -> {} from {}", remotePath, localFile.getAbsolutePath(), target());
         } catch (SftpCancelledException ce) {
             deleteLocalQuietly(localFile);
             throw ce;
@@ -112,7 +112,7 @@ final class MinaSftpSession implements SftpSession {
         try (FileInputStream in = new FileInputStream(localFile);
              OutputStream out = client.write(remotePath)) {
             copy(in, out, total, progress, cancelled);
-            log.info("Uploaded {} -> {} on {}", localFile.getAbsolutePath(), remotePath, target());
+            log.debug("Uploaded {} -> {} on {}", localFile.getAbsolutePath(), remotePath, target());
         } catch (SftpCancelledException ce) {
             deleteRemoteQuietly(remotePath);
             throw ce;
