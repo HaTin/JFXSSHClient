@@ -2,7 +2,6 @@ package com.xxx.jfxssh.service;
 
 import com.xxx.jfxssh.ssh.PortForwardSpec;
 import com.xxx.jfxssh.ssh.SshConnectionConfig;
-import com.xxx.jfxssh.ssh.SshService;
 import com.xxx.jfxssh.storage.entity.Connection;
 
 import java.util.List;

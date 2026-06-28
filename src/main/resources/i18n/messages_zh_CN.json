@@ -25,7 +25,6 @@
   "menu.view": "视图",
   "menu.view.light_theme": "浅色主题",
   "menu.view.dark_theme": "深色主题",
-  "menu.view.language": "语言",
   "menu.view.reset_layout": "重置布局",
 
   "menu.keyboard": "键盘",
@@ -53,9 +52,6 @@
   "lang.zh_CN": "简体中文",
 
   "tree.connections": "连接",
-  "tree.group.production": "生产环境",
-  "tree.group.testing": "测试环境",
-  "tree.group.local": "本地",
 
   "tree.menu.add_group": "添加分组",
   "tree.menu.rename_group": "重命名分组",
@@ -67,7 +63,6 @@
   "tree.menu.duplicate": "复制",
   "tree.menu.delete": "删除",
 
-  "tab.welcome": "欢迎",
   "tab.no_session": "暂无活动会话",
   "terminal.input.prompt": "在此输入（支持中文）；回车发送，Shift+回车换行",
   "terminal.disconnected_hint": "[连接已断开 — 按回车重新连接]",
@@ -92,7 +87,6 @@
   "dialog.connection.passphrase": "私钥口令",
   "dialog.connection.import_key": "从文件导入",
   "dialog.connection.import_key_failed": "读取私钥文件失败：{0}",
-  "dialog.connection.browse": "浏览",
   "dialog.connection.group": "分组",
   "dialog.connection.group_none": "（无）",
   "dialog.connection.terminal_type": "终端类型",
@@ -153,7 +147,6 @@
   "dialog.save_cred.title": "保存凭据",
   "dialog.save_cred.prompt": "已连接。是否将这些凭据保存到该连接，以便下次免输？（密码将使用主密码加密存储。）",
 
-  "msg.connect.success": "已成功连接到 {0}。",
   "msg.connect.fail": "连接 {0} 失败。",
 
   "sftp.title": "{0} — SFTP",
@@ -204,9 +197,7 @@
   "sftp.reason.not_empty": "目录非空",
   "sftp.reason.unsupported": "不支持该操作",
   "sftp.reason.unknown": "未知错误",
-  "dialog.sftp.download.title": "下载文件",
   "msg.sftp.connect.fail": "打开 SFTP 失败：{0}。",
-  "msg.sftp.download.fail": "下载 {0} 失败。",
 
   "forward.title": "{0} — 端口转发",
   "forward.button.add": "添加",
@@ -245,7 +236,6 @@
   "forward.hint.local": "本地转发：将服务器可达的远程端口转发到本地访问。示例：绑定 127.0.0.1:3307 → 目标 192.168.1.50:3306。",
   "forward.hint.remote": "远程转发：把本地端口暴露在 SSH 服务器上。示例：绑定 0.0.0.0:8080 → 目标 127.0.0.1:8080。",
   "forward.hint.dynamic": "动态转发：本地 SOCKS5 代理。把浏览器代理设为绑定地址，即可通过 SSH 服务器访问任意目标。",
-  "forward.error.reconnect_failed": "重新连接失败：{0}",
   "forward.active.title": "后台端口转发",
   "forward.active.stop": "停止",
   "forward.active.stop_all": "全部停止",

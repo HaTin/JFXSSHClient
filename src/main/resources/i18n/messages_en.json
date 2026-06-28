@@ -25,7 +25,6 @@
   "menu.view": "View",
   "menu.view.light_theme": "Light Theme",
   "menu.view.dark_theme": "Dark Theme",
-  "menu.view.language": "Language",
   "menu.view.reset_layout": "Reset Layout",
 
   "menu.keyboard": "Keyboard",
@@ -53,9 +52,6 @@
   "lang.zh_CN": "简体中文",
 
   "tree.connections": "Connections",
-  "tree.group.production": "Production",
-  "tree.group.testing": "Testing",
-  "tree.group.local": "Local",
 
   "tree.menu.add_group": "Add Group",
   "tree.menu.rename_group": "Rename Group",
@@ -67,7 +63,6 @@
   "tree.menu.duplicate": "Duplicate",
   "tree.menu.delete": "Delete",
 
-  "tab.welcome": "Welcome",
   "tab.no_session": "No active session",
   "terminal.input.prompt": "Type here (supports Chinese); Enter to send, Shift+Enter for newline",
   "terminal.disconnected_hint": "[Disconnected — press Enter to reconnect]",
@@ -92,7 +87,6 @@
   "dialog.connection.passphrase": "Key Passphrase",
   "dialog.connection.import_key": "Import from file",
   "dialog.connection.import_key_failed": "Failed to read private key file: {0}",
-  "dialog.connection.browse": "Browse",
   "dialog.connection.group": "Group",
   "dialog.connection.group_none": "(None)",
   "dialog.connection.terminal_type": "Terminal Type",
@@ -153,7 +147,6 @@
   "dialog.save_cred.title": "Save Credentials",
   "dialog.save_cred.prompt": "Connected. Save these credentials to this connection so you don't have to enter them next time? (Passwords are stored encrypted with your master password.)",
 
-  "msg.connect.success": "Connected successfully to {0}.",
   "msg.connect.fail": "Failed to connect to {0}.",
 
   "sftp.title": "{0} — SFTP",
@@ -204,9 +197,7 @@
   "sftp.reason.not_empty": "Directory not empty",
   "sftp.reason.unsupported": "Operation not supported",
   "sftp.reason.unknown": "Unknown error",
-  "dialog.sftp.download.title": "Download File",
   "msg.sftp.connect.fail": "Failed to open SFTP on {0}.",
-  "msg.sftp.download.fail": "Failed to download {0}.",
 
   "forward.title": "{0} — Port Forward",
   "forward.button.add": "Add",
@@ -245,7 +236,6 @@
   "forward.hint.local": "Local: forward a server-reachable remote port to a local port. Example: bind 127.0.0.1:3307 → target 192.168.1.50:3306.",
   "forward.hint.remote": "Remote: expose a local port on the SSH server. Example: bind 0.0.0.0:8080 → target 127.0.0.1:8080.",
   "forward.hint.dynamic": "Dynamic: local SOCKS5 proxy. Set browser proxy to bindHost:bindPort to route traffic via the SSH server.",
-  "forward.error.reconnect_failed": "Reconnect failed: {0}",
   "forward.active.title": "Active Port Forwards",
   "forward.active.stop": "Stop",
   "forward.active.stop_all": "Stop All",
