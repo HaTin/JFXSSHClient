@@ -22,8 +22,11 @@ mvnw.cmd
 .DS_Store
 Thumbs.db
 
-# Claude Code local settings (machine-local)
-.claude/settings.local.json
+# Claude Code (machine-local)
+.claude/
+
+# 所有隐藏目录（dot-dirs）一律不纳入 git（.gitignore 本身是文件，仍会被追踪）
+.*/
 
 # Logs / runtime
 *.log
