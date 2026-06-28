@@ -16,8 +16,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
@@ -66,6 +69,7 @@ public final class ConnectionDialog {
         ButtonType cancelType = new ButtonType(I18n.t("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         dialog.getDialogPane().getButtonTypes().addAll(okType, cancelType);
         dialog.getDialogPane().setContent(buildForm(groups));
+        dialog.setResizable(true); // 切换认证方式时内容高度变化，允许窗口自适应
 
         fill(existing, preselectGroupId);
         updateAuthVisibility();
@@ -116,6 +120,15 @@ public final class ConnectionDialog {
         grid.setHgap(8);
         grid.setVgap(8);
         grid.setPadding(new Insets(16));
+        grid.setPrefWidth(560);
+
+        // 第 0 列（标签）按内容取宽，避免被压成「...」；第 1 列（输入）占满剩余宽度
+        ColumnConstraints labelCol = new ColumnConstraints();
+        labelCol.setMinWidth(Region.USE_PREF_SIZE);
+        ColumnConstraints fieldCol = new ColumnConstraints();
+        fieldCol.setHgrow(Priority.ALWAYS);
+        fieldCol.setFillWidth(true);
+        grid.getColumnConstraints().addAll(labelCol, fieldCol);
 
         portField.setPromptText(String.valueOf(Constants.DEFAULT_PORT));
 
@@ -155,9 +168,11 @@ public final class ConnectionDialog {
                 "xterm-256color", "xterm", "vt100", "vt220", "ansi", "linux", "screen");
 
         keyContentArea.setPromptText(I18n.t("dialog.connection.private_key_prompt"));
-        keyContentArea.setPrefRowCount(6);
+        keyContentArea.setPrefRowCount(8);
+        keyContentArea.setMinHeight(160);
+        keyContentArea.setPrefWidth(380);
         keyContentArea.setWrapText(false);
-        keyContentArea.setStyle("-fx-font-family: monospace;");
+        keyContentArea.setStyle("-fx-font-family: monospace; -fx-font-size: 13px;");
         Button importKey = new Button(I18n.t("dialog.connection.import_key"));
         importKey.setOnAction(e -> importKeyFile());
         HBox keyButtons = new HBox(8, importKey);
@@ -197,6 +212,16 @@ public final class ConnectionDialog {
         boolean key = authCombo.getValue() == AuthType.PRIVATE_KEY;
         toggle(keyRow, key);
         toggle(passwordRow, !key);
+        resizeToFit();
+    }
+
+    /** 切换认证方式后，让对话框窗口按当前可见内容重新计算尺寸（避免高度不变导致文字被压缩）。 */
+    private void resizeToFit() {
+        if (dialog.getDialogPane().getScene() == null
+                || dialog.getDialogPane().getScene().getWindow() == null) {
+            return; // 构造期尚未 show，初始尺寸由 show 决定
+        }
+        dialog.getDialogPane().getScene().getWindow().sizeToScene();
     }
 
     private void toggle(javafx.scene.Node[] nodes, boolean visible) {
