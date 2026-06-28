@@ -1,6 +1,7 @@
 package com.xxx.jfxssh.ssh;
 
 import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.common.SftpConstants;
 import org.apache.sshd.sftp.common.SftpException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import java.io.OutputStream;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -68,6 +70,24 @@ final class MinaSftpSession implements SftpSession {
             return entries;
         } catch (IOException e) {
             throw wrap(e, "Failed to list '" + path + "' on " + target());
+        }
+    }
+
+    @Override
+    public Optional<SftpEntry> statEntry(String path) {
+        try {
+            SftpClient.Attributes attrs = client.stat(path);
+            String name = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+            int slash = name.lastIndexOf('/');
+            if (slash >= 0) {
+                name = name.substring(slash + 1);
+            }
+            return Optional.of(toEntry(name, attrs));
+        } catch (IOException e) {
+            if (e instanceof SftpException se && se.getStatus() == SftpConstants.SSH_FX_NO_SUCH_FILE) {
+                return Optional.empty();
+            }
+            throw wrap(e, "Failed to stat '" + path + "' on " + target());
         }
     }
 

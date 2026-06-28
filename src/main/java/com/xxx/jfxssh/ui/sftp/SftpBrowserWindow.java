@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ui.sftp;
 import com.xxx.jfxssh.common.i18n.I18n;
 import com.xxx.jfxssh.ssh.SftpCancelledException;
 import com.xxx.jfxssh.ssh.SftpEntry;
+import com.xxx.jfxssh.ssh.SftpOperationException;
 import com.xxx.jfxssh.ssh.SftpProgress;
 import com.xxx.jfxssh.ssh.SftpSession;
 import com.xxx.jfxssh.ssh.SshSession;
@@ -23,14 +24,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * 双栏 SFTP 文件管理窗口（每个连接一个）。
@@ -138,20 +147,39 @@ public final class SftpBrowserWindow {
         return new VBox(panes, transfersScroll, statusBar);
     }
 
-    /** 本地选中文件 → 远程当前目录（左栏右键「上传」）。 */
+    /** 本地选中项 → 远程当前目录（左栏右键「上传」）。文件夹则递归上传整目录。 */
     private void upload() {
         LocalPane.LocalEntry entry = localPane.selected();
         if (entry == null) {
             return;
         }
         if (entry.directory()) {
-            UiDialogs.error(I18n.t("sftp.error.dir_unsupported"));
-            return;
+            uploadFolder(entry);
+        } else {
+            uploadFile(entry);
         }
+    }
+
+    /** 单文件上传：远程已存在则先弹覆盖确认，拒绝则取消该次传输。 */
+    private void uploadFile(LocalPane.LocalEntry entry) {
         File local = entry.path().toFile();
         String remote = remotePane.resolve(entry.name());
+        startTransfer(true, entry.name(), (channel, progress, cancelled) -> {
+            if (channel.statEntry(remote).isPresent()
+                    && askOverwrite(entry.name(), false) != UiDialogs.OverwriteChoice.OVERWRITE) {
+                throw new SftpCancelledException("overwrite declined");
+            }
+            channel.upload(local, remote, progress, cancelled);
+        }, remotePane::refresh);
+    }
+
+    /** 文件夹上传：递归建远程目录、逐个上传文件；进度为累计字节，支持「全部覆盖/跳过」。 */
+    private void uploadFolder(LocalPane.LocalEntry entry) {
+        Path localRoot = entry.path();
+        String remoteRoot = remotePane.resolve(entry.name());
         startTransfer(true, entry.name(),
-                (channel, progress, cancelled) -> channel.upload(local, remote, progress, cancelled),
+                (channel, progress, cancelled) ->
+                        new FolderUpload(channel, progress, cancelled).run(localRoot, remoteRoot),
                 remotePane::refresh);
     }
 
@@ -293,5 +321,138 @@ public final class SftpBrowserWindow {
     @FunctionalInterface
     private interface TransferAction {
         void run(SftpSession channel, SftpProgress progress, BooleanSupplier cancelled);
+    }
+
+    /** 在 FX 线程弹出覆盖确认并阻塞当前（传输）线程直到用户作答；窗口关闭中视为取消。 */
+    private UiDialogs.OverwriteChoice askOverwrite(String name, boolean offerAll) {
+        CompletableFuture<UiDialogs.OverwriteChoice> future = new CompletableFuture<>();
+        Platform.runLater(() -> {
+            if (closing.get()) {
+                future.complete(UiDialogs.OverwriteChoice.CANCEL);
+            } else {
+                future.complete(UiDialogs.confirmOverwrite(name, offerAll));
+            }
+        });
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return UiDialogs.OverwriteChoice.CANCEL;
+        } catch (ExecutionException e) {
+            return UiDialogs.OverwriteChoice.CANCEL;
+        }
+    }
+
+    /** 递归累加本地目录下所有普通文件的字节数（用于文件夹上传的总进度）。 */
+    private static long totalSize(Path root) {
+        try (Stream<Path> walk = Files.walk(root)) {
+            return walk.filter(Files::isRegularFile).mapToLong(p -> p.toFile().length()).sum();
+        } catch (IOException e) {
+            return 0L;
+        }
+    }
+
+    /** 列出本地目录下的直接子项，按名称（不分大小写）排序。 */
+    private static List<Path> listSorted(Path dir) {
+        try (Stream<Path> s = Files.list(dir)) {
+            return s.sorted(Comparator.comparing(p -> p.getFileName().toString().toLowerCase())).toList();
+        } catch (IOException e) {
+            throw new SftpOperationException(SftpOperationException.STATUS_UNKNOWN, "Failed to read local directory: " + dir);
+        }
+    }
+
+    private static String joinRemote(String base, String name) {
+        return base.endsWith("/") ? base + name : base + "/" + name;
+    }
+
+    /**
+     * 一次文件夹上传的可变状态：累计进度 + 「全部覆盖/全部跳过」记忆。运行在传输线程，
+     * 用独立 SFTP 通道串行执行（递归建目录、逐文件上传）。
+     */
+    private final class FolderUpload {
+
+        private final SftpSession channel;
+        private final SftpProgress progress;
+        private final BooleanSupplier cancelled;
+        private long totalBytes;
+        private long sentBytes;
+        private Boolean overwriteAll; // null=每次询问, TRUE=全部覆盖, FALSE=全部跳过
+
+        FolderUpload(SftpSession channel, SftpProgress progress, BooleanSupplier cancelled) {
+            this.channel = channel;
+            this.progress = progress;
+            this.cancelled = cancelled;
+        }
+
+        void run(Path localRoot, String remoteRoot) {
+            totalBytes = totalSize(localRoot);
+            progress.update(0, totalBytes);
+            ensureDir(remoteRoot);
+            walk(localRoot, remoteRoot);
+            progress.update(totalBytes, totalBytes);
+        }
+
+        private void walk(Path localDir, String remoteDir) {
+            for (Path child : listSorted(localDir)) {
+                checkCancel();
+                String remoteChild = joinRemote(remoteDir, child.getFileName().toString());
+                if (Files.isDirectory(child)) {
+                    ensureDir(remoteChild);
+                    walk(child, remoteChild);
+                } else {
+                    uploadOne(child, remoteChild);
+                }
+            }
+        }
+
+        private void uploadOne(Path file, String remote) {
+            long size = file.toFile().length();
+            if (channel.statEntry(remote).isPresent() && !shouldOverwrite(file.getFileName().toString())) {
+                sentBytes += size; // 跳过也推进累计进度，使进度条最终归满
+                progress.update(sentBytes, totalBytes);
+                return;
+            }
+            long base = sentBytes;
+            channel.upload(file.toFile(), remote,
+                    (transferred, total) -> progress.update(base + transferred, totalBytes), cancelled);
+            sentBytes = base + size;
+        }
+
+        /** 远程目录不存在则创建；已是目录则跳过；若同名是文件则报错中止。 */
+        private void ensureDir(String remote) {
+            Optional<SftpEntry> st = channel.statEntry(remote);
+            if (st.isEmpty()) {
+                channel.mkdir(remote);
+            } else if (!st.get().directory()) {
+                throw new SftpOperationException(SftpOperationException.STATUS_UNKNOWN, "Remote path is a file, expected a directory: " + remote);
+            }
+        }
+
+        /** 结合「全部」记忆判断是否覆盖；用户选取消则抛出取消异常中止整个文件夹。 */
+        private boolean shouldOverwrite(String name) {
+            if (overwriteAll != null) {
+                return overwriteAll;
+            }
+            switch (askOverwrite(name, true)) {
+                case OVERWRITE:
+                    return true;
+                case SKIP:
+                    return false;
+                case OVERWRITE_ALL:
+                    overwriteAll = Boolean.TRUE;
+                    return true;
+                case SKIP_ALL:
+                    overwriteAll = Boolean.FALSE;
+                    return false;
+                default:
+                    throw new SftpCancelledException("folder upload cancelled");
+            }
+        }
+
+        private void checkCancel() {
+            if (cancelled.getAsBoolean()) {
+                throw new SftpCancelledException("cancelled");
+            }
+        }
     }
 }

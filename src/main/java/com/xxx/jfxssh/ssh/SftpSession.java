@@ -2,6 +2,7 @@ package com.xxx.jfxssh.ssh;
 
 import java.io.File;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -35,6 +36,16 @@ public interface SftpSession extends AutoCloseable {
      * @return 条目列表
      */
     List<SftpEntry> list(String path);
+
+    /**
+     * 查询远程条目属性；不存在返回 {@code empty}。
+     *
+     * <p>用于上传前的同名检测（是否需要覆盖确认）与文件夹上传时判断远程目录是否已存在。</p>
+     *
+     * @param path 远程路径
+     * @return 条目（{@link SftpEntry#name()} 为路径最后一段），不存在返回 empty
+     */
+    Optional<SftpEntry> statEntry(String path);
 
     /**
      * 下载远程文件到本地。

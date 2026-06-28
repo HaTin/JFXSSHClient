@@ -243,6 +243,57 @@ public final class UiDialogs {
         CANCEL
     }
 
+    /** 同名覆盖确认的结果。 */
+    public enum OverwriteChoice {
+        /** 覆盖本项。 */
+        OVERWRITE,
+        /** 覆盖本次其余所有同名项。 */
+        OVERWRITE_ALL,
+        /** 跳过本项。 */
+        SKIP,
+        /** 跳过本次其余所有同名项。 */
+        SKIP_ALL,
+        /** 取消整个操作。 */
+        CANCEL
+    }
+
+    /**
+     * 同名覆盖确认对话框。
+     *
+     * @param name     冲突的名称（已存在于目标）
+     * @param offerAll 是否提供「全部覆盖 / 全部跳过」（文件夹/多文件传输时为 true，单文件为 false）
+     * @return 用户选择；关闭对话框视为 {@link OverwriteChoice#CANCEL}
+     */
+    public static OverwriteChoice confirmOverwrite(String name, boolean offerAll) {
+        ButtonType overwrite = new ButtonType(I18n.t("sftp.overwrite.overwrite"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType overwriteAll = new ButtonType(I18n.t("sftp.overwrite.overwrite_all"), ButtonBar.ButtonData.OTHER);
+        ButtonType skip = new ButtonType(I18n.t("sftp.overwrite.skip"), ButtonBar.ButtonData.OTHER);
+        ButtonType skipAll = new ButtonType(I18n.t("sftp.overwrite.skip_all"), ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = cancelButton();
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, I18n.t("sftp.overwrite.message", name));
+        alert.setTitle(I18n.t("sftp.overwrite.title"));
+        alert.setHeaderText(null);
+        alert.getButtonTypes().setAll(offerAll
+                ? new ButtonType[]{overwrite, overwriteAll, skip, skipAll, cancel}
+                : new ButtonType[]{overwrite, skip, cancel});
+
+        ButtonType result = alert.showAndWait().orElse(cancel);
+        if (result == overwrite) {
+            return OverwriteChoice.OVERWRITE;
+        }
+        if (result == overwriteAll) {
+            return OverwriteChoice.OVERWRITE_ALL;
+        }
+        if (result == skip) {
+            return OverwriteChoice.SKIP;
+        }
+        if (result == skipAll) {
+            return OverwriteChoice.SKIP_ALL;
+        }
+        return OverwriteChoice.CANCEL;
+    }
+
     /**
      * 选择认证方式（密码 / 私钥）。
      *

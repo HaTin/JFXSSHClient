@@ -125,6 +125,22 @@ class MinaSftpSessionTest {
     }
 
     @Test
+    void statEntryDetectsExistenceAndType(@TempDir Path remote) throws Exception {
+        Files.writeString(remote.resolve("file.txt"), "hello");
+        Files.createDirectory(remote.resolve("sub"));
+        try (SshSession ssh = connect(remote)) {
+            SftpSession sftp = ssh.openSftp();
+            String base = sftp.canonicalPath(".");
+
+            assertTrue(sftp.statEntry(base + "/file.txt").isPresent(), "existing file should be found");
+            assertFalse(sftp.statEntry(base + "/file.txt").orElseThrow().directory(), "file is not a directory");
+            assertTrue(sftp.statEntry(base + "/sub").orElseThrow().directory(), "sub should be a directory");
+            assertTrue(sftp.statEntry(base + "/nope.txt").isEmpty(), "missing path should be empty");
+            sftp.close();
+        }
+    }
+
+    @Test
     void uploadCancelledRemovesPartial(@TempDir Path remote, @TempDir Path localDir) throws Exception {
         byte[] payload = new byte[200_000];
         Path localFile = localDir.resolve("big.bin");

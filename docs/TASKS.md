@@ -207,8 +207,12 @@ DONE
     `SftpProgress` 进度回调、`upload/download(带进度+取消)/mkdir/rename/delete(递归)`。
   - 接线：右键连接 → SFTP、Tools → SFTP（已启用）。
   - 测试：MinaSftpSessionTest 覆盖 list / download / upload(进度) / 取消清理 /
-    多通道共存 / mkdir+rename+递归delete / 权限错误状态码（root 环境自动跳过）。
-  - 待办：**文件夹整体上传/下载**（当前选目录提示"请选择文件"）、**覆盖确认**（同名直接覆盖）、
+    多通道共存 / mkdir+rename+递归delete / 权限错误状态码（root 环境自动跳过）/ statEntry 存在性与类型判定。
+  - 文件夹上传（DONE）：左栏选目录「上传到远程」即递归上传整个目录树——`statEntry` 探测远程
+    目录、缺失则 `mkdir`，逐文件上传，**进度为整目录累计字节**，可取消。
+  - 覆盖确认（DONE）：上传遇同名先弹确认；文件夹/多文件传输提供「全部覆盖 / 全部跳过」记忆本次选择，
+    单文件仅「覆盖 / 取消」（`UiDialogs.confirmOverwrite`，传输线程经 `CompletableFuture` 阻塞等待 FX 作答）。
+  - 待办：**文件夹整体下载**（右栏选目录仍提示"请选择文件"）、**下载侧同名覆盖确认**、
     **取消单个传输后目标栏不自动刷新**、断点续传、传输队列（并发数上限/暂停/重排）、拖拽。
 - **V3 Port Forward**：已完成。
   - 支持本地转发（-L）、远程转发（-R）、动态 SOCKS 代理（-D）。
