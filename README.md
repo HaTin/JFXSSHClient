@@ -1,10 +1,13 @@
 # JFX SSH Client
 
-A modern, cross-platform SSH client built with JavaFX — connection management, a real terminal, SFTP, and port forwarding in one desktop app. 
+**JFX SSH Client** is a free, open-source, **cross-platform SSH client** for Windows, macOS, and Linux, built with JavaFX. It brings connection management, a full **terminal emulator**, an **SFTP** file manager, and **SSH port forwarding** (local / remote / dynamic SOCKS proxy) together in one desktop app — a lightweight open-source alternative to XShell, FinalShell, MobaXterm, SecureCRT, and PuTTY.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21-blue.svg)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+
+*Keywords: SSH client · open-source SSH client · cross-platform SSH tool · terminal emulator · SFTP client · SSH port forwarding · SSH tunnel · SOCKS proxy · JavaFX SSH · XShell / FinalShell / MobaXterm / PuTTY alternative · Windows macOS Linux SSH*
 
 > 中文说明见 [下半部分](#中文说明)。
 
@@ -109,7 +112,9 @@ Layering is strict: `UI → Service → Repository → Database`. The `ssh` and 
 
 # 中文说明
 
-基于 JavaFX 的现代化跨平台 SSH 客户端 —— 在一个桌面应用里集成连接管理、真实终端、SFTP 与端口转发。
+**JFX SSH Client** 是一款免费、开源、**跨平台的 SSH 客户端**（支持 Windows / macOS / Linux），基于 JavaFX 开发。它把**连接管理、终端模拟器、SFTP 文件传输、端口转发（本地 / 远程 / 动态 SOCKS 代理）**集成在一个桌面应用里，是 XShell、FinalShell、MobaXterm、SecureCRT、PuTTY 的轻量级开源替代品。
+
+> 关键词：SSH 客户端 · 开源 SSH 客户端 · 跨平台 SSH 工具 · 终端模拟器 · SFTP 客户端 · 端口转发 · SSH 隧道 · SOCKS 代理 · 远程服务器管理 · JavaFX SSH · XShell / FinalShell / MobaXterm 替代品 · 国产开源 SSH 工具
 
 ## 功能特性
 
