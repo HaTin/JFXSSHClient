@@ -236,7 +236,7 @@
   "forward.validation.bind_port_invalid": "Bind port must be 0–65535 (0 = auto).",
   "forward.validation.dest_host_required": "Target host is required.",
   "forward.validation.dest_port_invalid": "Target port must be 1–65535.",
-  "forward.hint.local": "Local: access target through this SSH server. Example: bind 127.0.0.1:3307 → target 192.168.1.50:3306.",
+  "forward.hint.local": "Local (-L): forward a remote port (reachable from the SSH server) to a local port; connecting to the local port reaches the remote target. Example: local 127.0.0.1:3307 → 192.168.1.50:3306 (via the server).",
   "forward.hint.remote": "Remote: expose a local port on the SSH server. Example: bind 0.0.0.0:8080 → target 127.0.0.1:8080.",
   "forward.hint.dynamic": "Dynamic: local SOCKS5 proxy. Set browser proxy to bindHost:bindPort to route traffic via the SSH server.",
   "forward.error.reconnect_failed": "Reconnect failed: {0}",

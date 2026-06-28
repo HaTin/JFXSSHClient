@@ -236,7 +236,7 @@
   "forward.validation.bind_port_invalid": "绑定端口须为 0–65535（0 = 自动）。",
   "forward.validation.dest_host_required": "目标主机不能为空。",
   "forward.validation.dest_port_invalid": "目标端口须为 1–65535。",
-  "forward.hint.local": "本地转发：通过该 SSH 服务器访问目标服务。示例：绑定 127.0.0.1:3307 → 目标 192.168.1.50:3306。",
+  "forward.hint.local": "本地转发（-L）：将服务器可访问的远程端口转发到本地端口，连接本地端口即等于访问远程目标。示例：本地 127.0.0.1:3307 →（经服务器）192.168.1.50:3306。",
   "forward.hint.remote": "远程转发：把本地端口暴露在 SSH 服务器上。示例：绑定 0.0.0.0:8080 → 目标 127.0.0.1:8080。",
   "forward.hint.dynamic": "动态转发：本地 SOCKS5 代理。把浏览器代理设为绑定地址，即可通过 SSH 服务器访问任意目标。",
   "forward.error.reconnect_failed": "重新连接失败：{0}",
