@@ -216,6 +216,7 @@
   "forward.button.edit": "编辑",
   "forward.button.remove": "移除",
   "forward.button.start_all": "全部启动",
+  "forward.button.stop_all": "全部停止",
   "forward.column.name": "名称",
   "forward.column.auto_start": "自动",
   "forward.column.type": "类型",

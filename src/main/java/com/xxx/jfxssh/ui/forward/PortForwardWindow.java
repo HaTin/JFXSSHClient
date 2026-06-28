@@ -36,7 +36,7 @@ import java.util.function.Consumer;
 /**
  * 端口转发管理窗口（每个连接一个，独立窗口）。
  *
- * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 编辑 / 移除 / 全部启动）。
+ * <p>规则表格（名称 / 类型 / 绑定 / 目标 / 状态）+ 工具栏（添加 / 启动 / 停止 / 编辑 / 移除 / 全部启动 / 全部停止）。
  * 规则持久化到 SQLite，打开窗口时只加载不自动启动。启停委托给 {@link ActivePortForwardService} 在后台执行；
  * 关闭本窗口不会停止已启动的转发。</p>
  */
@@ -74,6 +74,7 @@ public final class PortForwardWindow {
     private Button startButton;
     private Button startAllButton;
     private Button stopButton;
+    private Button stopAllButton;
     private Button editButton;
     private Button removeButton;
 
@@ -146,7 +147,10 @@ public final class PortForwardWindow {
         removeButton.setOnAction(e -> removeSelected());
         startAllButton = new Button(I18n.t("forward.button.start_all"));
         startAllButton.setOnAction(e -> startAll());
-        ToolBar toolBar = new ToolBar(add, startButton, stopButton, editButton, removeButton, startAllButton);
+        stopAllButton = new Button(I18n.t("forward.button.stop_all"));
+        stopAllButton.setOnAction(e -> stopAll());
+        ToolBar toolBar = new ToolBar(add, startButton, stopButton, editButton, removeButton,
+                startAllButton, stopAllButton);
 
         buildTable();
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonStates());
@@ -175,11 +179,13 @@ public final class PortForwardWindow {
         boolean canEdit = selected != null
                 && (selected.status == Status.STOPPED || selected.status == Status.ERROR);
         boolean canStartAny = rows.stream().anyMatch(r -> r.status != Status.RUNNING && r.status != Status.STARTING);
+        boolean canStopAny = rows.stream().anyMatch(r -> r.status == Status.RUNNING);
         startButton.setDisable(!canStart);
         stopButton.setDisable(!running);
         editButton.setDisable(!canEdit);
         removeButton.setDisable(selected == null);
         startAllButton.setDisable(!canStartAny);
+        stopAllButton.setDisable(!canStopAny);
     }
 
     private void buildTable() {
@@ -290,6 +296,14 @@ public final class PortForwardWindow {
         for (Row row : rows) {
             if (row.status != Status.RUNNING && row.status != Status.STARTING) {
                 startRow(row);
+            }
+        }
+    }
+
+    private void stopAll() {
+        for (Row row : rows) {
+            if (row.status == Status.RUNNING) {
+                stopRow(row);
             }
         }
     }

@@ -216,6 +216,7 @@
   "forward.button.edit": "Edit",
   "forward.button.remove": "Remove",
   "forward.button.start_all": "Start All",
+  "forward.button.stop_all": "Stop All",
   "forward.column.name": "Name",
   "forward.column.auto_start": "Auto",
   "forward.column.type": "Type",
