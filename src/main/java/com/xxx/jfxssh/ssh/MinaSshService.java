@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 
 /**
  * {@link SshService} 的 Apache Mina 实现。
@@ -50,13 +51,13 @@ public final class MinaSshService implements SshService, AutoCloseable {
     @Override
     public SshSession connect(SshConnectionConfig config) {
         ensureStarted();
+        applyKeepAlive(config);
         try {
             ClientSession session = client
                     .connect(config.getUsername(), config.getHost(), config.getPort())
                     .verify(config.getConnectTimeout())
                     .getSession();
 
-            applyKeepAlive(session, config);
             applyAuth(session, config);
             session.auth().verify(config.getAuthTimeout());
 
@@ -99,10 +100,18 @@ public final class MinaSshService implements SshService, AutoCloseable {
         }
     }
 
-    private void applyKeepAlive(ClientSession session, SshConnectionConfig config) {
-        if (config.getKeepAliveInterval() != null && !config.getKeepAliveInterval().isZero()) {
-            CoreModuleProperties.HEARTBEAT_INTERVAL.set(session, config.getKeepAliveInterval());
+    private void applyKeepAlive(SshConnectionConfig config) {
+        if (config.getKeepAliveInterval() == null || config.getKeepAliveInterval().isZero()) {
+            CoreModuleProperties.HEARTBEAT_INTERVAL.set(client, Duration.ZERO);
+            return;
         }
+        // 在 connect() 之前设置到 client，新的 ClientSession 才会在构造 ClientConnectionService 时读到
+        CoreModuleProperties.HEARTBEAT_INTERVAL.set(client, config.getKeepAliveInterval());
+        // 对 OpenSSH 服务器使用更兼容的 keepalive 请求名
+        CoreModuleProperties.HEARTBEAT_REQUEST.set(client, "keepalive@openssh.com");
+        // 同时开启 TCP keepalive，帮助检测死连接
+        CoreModuleProperties.SOCKET_KEEPALIVE.set(client, Boolean.TRUE);
+        log.debug("SSH keepalive configured: interval={}", config.getKeepAliveInterval());
     }
 
     @Override
