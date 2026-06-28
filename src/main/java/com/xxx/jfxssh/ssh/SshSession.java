@@ -21,6 +21,18 @@ public interface SshSession extends AutoCloseable {
     boolean isOpen();
 
     /**
+     * 注册连接关闭监听器。
+     *
+     * <p>会话关闭（正常或异常断开）时回调。主要用于后台服务感知会话死亡并清理资源。
+     * 默认实现为空操作。</p>
+     *
+     * @param listener 关闭回调
+     */
+    default void addCloseListener(Runnable listener) {
+        // no-op by default
+    }
+
+    /**
      * 打开交互式 shell 通道（PTY）。
      *
      * @param columns 初始列数

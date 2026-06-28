@@ -45,7 +45,7 @@ final class MinaPortForward implements PortForward {
 
     @Override
     public boolean isOpen() {
-        return open;
+        return open && tracker.isOpen();
     }
 
     @Override

@@ -34,10 +34,7 @@ public final class ActivePortForwardServiceImpl implements ActivePortForwardServ
 
     @Override
     public int startForward(Connection connection, SshConnectionConfig config, PortForwardSpec spec) {
-        SessionContext ctx = sessions.computeIfAbsent(connection.getId(),
-                id -> new SessionContext(connection, config, connect(config)));
-        // 如果配置变化（比如重新打开窗口用了新配置），更新配置以便重连使用
-        ctx.config = config;
+        SessionContext ctx = getOrCreateContext(connection, config);
 
         ActiveForward existing = ctx.forwards.get(spec.name());
         if (existing != null) {
@@ -56,9 +53,7 @@ public final class ActivePortForwardServiceImpl implements ActivePortForwardServ
         if (rules == null || rules.isEmpty()) {
             return;
         }
-        SessionContext ctx = sessions.computeIfAbsent(connection.getId(),
-                id -> new SessionContext(connection, config, connect(config)));
-        ctx.config = config;
+        SessionContext ctx = getOrCreateContext(connection, config);
 
         for (PortForwardSpec spec : rules) {
             if (!spec.autoStart()) {
@@ -153,10 +148,12 @@ public final class ActivePortForwardServiceImpl implements ActivePortForwardServ
         try {
             return ctx.ssh.openForward(spec);
         } catch (RuntimeException ex) {
-            if (retryCount == 0 && isForwarderClosed(ex)) {
-                log.info("Forwarder closed for {} on {}, reconnecting", spec.name(), ctx.connection.getHost());
+            if (retryCount == 0 && (isForwarderClosed(ex) || !ctx.ssh.isOpen())) {
+                log.info("Forward session/forwarder closed for {} on {}, reconnecting",
+                        spec.name(), ctx.connection.getHost());
                 SshSession oldSession = ctx.ssh;
                 ctx.ssh = connect(ctx.config);
+                ctx.ssh.addCloseListener(() -> onSessionClosed(ctx.connection.getId()));
                 closeSession(oldSession);
                 return tryOpenForward(ctx, spec, retryCount + 1);
             }
@@ -183,6 +180,43 @@ public final class ActivePortForwardServiceImpl implements ActivePortForwardServ
     private boolean isForwarderClosed(RuntimeException ex) {
         String msg = ex.getMessage();
         return msg != null && msg.contains("TcpipForwarder is closed or closing");
+    }
+
+    private SessionContext getOrCreateContext(Connection connection, SshConnectionConfig config) {
+        SessionContext ctx = sessions.computeIfAbsent(connection.getId(),
+                id -> createContext(connection, config));
+        if (!ctx.ssh.isOpen()) {
+            log.info("Background SSH session dead for {}, reconnecting", connection.getHost());
+            sessions.remove(connection.getId(), ctx);
+            closeSession(ctx.ssh);
+            ctx = sessions.computeIfAbsent(connection.getId(),
+                    id -> createContext(connection, config));
+        }
+        ctx.config = config;
+        return ctx;
+    }
+
+    private SessionContext createContext(Connection connection, SshConnectionConfig config) {
+        SshSession ssh = connect(config);
+        SessionContext ctx = new SessionContext(connection, config, ssh);
+        ssh.addCloseListener(() -> onSessionClosed(connection.getId()));
+        return ctx;
+    }
+
+    private void onSessionClosed(long connectionId) {
+        SessionContext ctx = sessions.remove(connectionId);
+        if (ctx == null) {
+            return;
+        }
+        for (ActiveForward forward : ctx.forwards.values()) {
+            try {
+                forward.handle.close();
+            } catch (RuntimeException e) {
+                log.debug("Error closing forward handle on session close: {}", e.getMessage());
+            }
+        }
+        ctx.forwards.clear();
+        log.info("Background SSH session closed for connection {}", connectionId);
     }
 
     private ActiveForwardInfo toInfo(Connection connection, ActiveForward forward) {

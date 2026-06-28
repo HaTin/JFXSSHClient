@@ -3,6 +3,7 @@ package com.xxx.jfxssh.ssh;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.client.session.forward.PortForwardingTracker;
+import org.apache.sshd.common.session.SessionListener;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
@@ -112,5 +113,15 @@ final class MinaSshSession implements SshSession {
     public void close() {
         session.close(false);
         log.info("SSH disconnected: {}@{}:{}", username, host, port);
+    }
+
+    @Override
+    public void addCloseListener(Runnable listener) {
+        session.addSessionListener(new SessionListener() {
+            @Override
+            public void sessionClosed(org.apache.sshd.common.session.Session session) {
+                listener.run();
+            }
+        });
     }
 }
